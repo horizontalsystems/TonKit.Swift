@@ -1,5 +1,4 @@
-import Foundation
-
 public enum Network: String {
-    case mainNet, testNet
+    case mainNet
+    case testNet
 }

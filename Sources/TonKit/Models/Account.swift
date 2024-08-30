@@ -1,12 +1,28 @@
 import Foundation
+import GRDB
 import TonSwift
+import BigInt
 
-struct Account: Codable {
-    let address: Address
-    let balance: Int64
-    let status: String
-    let name: String?
-    let icon: String?
-    let isSuspended: Bool?
-    let isWallet: Bool
+public struct Account: Codable, Equatable {
+    public let address: Address
+    public let balance: BigUInt
+    public let status: Status
+}
+
+extension Account: FetchableRecord, PersistableRecord {
+    enum Columns {
+        static let address = Column(CodingKeys.address)
+        static let balance = Column(CodingKeys.balance)
+        static let status = Column(CodingKeys.status)
+    }
+}
+
+extension Account {
+    public enum Status: String, Codable {
+        case nonexist
+        case uninit
+        case active
+        case frozen
+        case unknown
+    }
 }

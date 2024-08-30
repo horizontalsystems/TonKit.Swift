@@ -1,21 +1,20 @@
+import Foundation
 import TonSwift
 
-public struct Jetton {
+public struct Jetton: Codable, Equatable, Hashable {
     public let address: Address
-    public let walletAddress: Address
-    
-    init(address: Address, walletAddress: Address) {
-        self.address = address
-        self.walletAddress = walletAddress
-    }
-    
-    init?(balance: Balance) {
-        let raw = Kit.address(jettonId: balance.id)
-        guard let address = try? Address.parse(raw: raw) else { return nil }
-        guard let walletRaw = balance.wallet,
-              let walletAddress = try? Address.parse(raw: walletRaw) else { return nil }
-        
-        self.address = address
-        self.walletAddress = walletAddress
+    public let name: String
+    public let symbol: String
+    public let decimals: Int
+    public let image: String
+    public let verification: VerificationType
+}
+
+public extension Jetton {
+    enum VerificationType: String, Codable {
+        case whitelist
+        case blacklist
+        case none
+        case unknown
     }
 }

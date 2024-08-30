@@ -1,6 +1,7 @@
 import BigInt
 import Combine
 import Foundation
+import GRDB
 import HdWalletKit
 import HsCryptoKit
 import HsToolKit
@@ -9,46 +10,26 @@ import TonStreamingAPI
 import TonSwift
 
 public class Kit {
-    static let tonId = "TON"
+    // private var cancellables = Set<AnyCancellable>()
 
-    static func jettonId(address: String) -> String { "TON/\(address)" }
-    static func address(jettonId: String) -> String { String(jettonId.dropFirst(4)) }
+    private let address: Address
+    private let network: Network
 
-    var cancellables = Set<AnyCancellable>()
-    
-    private let syncer: Syncer
-    private let accountInfoManager: AccountInfoManager
-    private let transactionManager: TransactionManager
-    private let transactionSender: TransactionSender?
+    private let accountManager: AccountManager
+    private let jettonManager: JettonManager
+    private let eventManager: EventManager
 
-    public let address: Address
-    public let network: Network
-    public let uniqueId: String
-    public let logger: Logger?
-    
-    @Published public var updateState: String  = "idle"
+    private let logger: Logger?
 
-    init(address: Address, network: Network, uniqueId: String,
-         syncer: Syncer,
-         accountInfoManager: AccountInfoManager,
-         transactionManager: TransactionManager,
-         transactionSender: TransactionSender?,
-         logger: Logger?)
-    {
+    // @Published public var updateState: String = "idle"
+
+    init(address: Address, network: Network, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, logger: Logger?) {
         self.address = address
         self.network = network
-        self.uniqueId = uniqueId
-        self.syncer = syncer
-        self.accountInfoManager = accountInfoManager
-        self.transactionManager = transactionManager
-        self.transactionSender = transactionSender
+        self.accountManager = accountManager
+        self.jettonManager = jettonManager
+        self.eventManager = eventManager
         self.logger = logger
-        
-        syncer.$updateState.sink { [weak self] state in
-            self?.updateState = state
-        }.store(in: &cancellables)
-        
-        
     }
 }
 
@@ -56,88 +37,99 @@ public class Kit {
 
 public extension Kit {
     var watchOnly: Bool {
-        transactionSender == nil
+        false
+        // transactionSender == nil
     }
 
     var syncState: SyncState {
-        syncer.state
+        accountManager.syncState
     }
 
-    var balance: BigUInt {
-        accountInfoManager.tonBalance
+    var syncStatePublisher: AnyPublisher<SyncState, Never> {
+        accountManager.$syncState.eraseToAnyPublisher()
     }
 
-    func jettonBalance(address: Address) -> BigUInt {
-        accountInfoManager.jettonBalance(address: address)
+    var jettonSyncState: SyncState {
+        jettonManager.syncState
     }
 
-    func jettonBalancePublisher(address: Address) -> AnyPublisher<BigUInt, Never> {
-        accountInfoManager.jettonBalancePublisher(address: address)
+    var jettonSyncStatePublisher: AnyPublisher<SyncState, Never> {
+        jettonManager.$syncState.eraseToAnyPublisher()
+    }
+
+    var eventSyncState: SyncState {
+        eventManager.syncState
+    }
+
+    var eventSyncStatePublisher: AnyPublisher<SyncState, Never> {
+        eventManager.$syncState.eraseToAnyPublisher()
+    }
+
+    var account: Account? {
+        accountManager.account
+    }
+
+    var accountPublisher: AnyPublisher<Account?, Never> {
+        accountManager.$account.eraseToAnyPublisher()
+    }
+
+    var jettonBalanceMap: [Address: JettonBalance] {
+        jettonManager.jettonBalanceMap
+    }
+
+    var jettonBalanceMapPublisher: AnyPublisher<[Address: JettonBalance], Never> {
+        jettonManager.$jettonBalanceMap.eraseToAnyPublisher()
     }
 
     var receiveAddress: Address {
         address
     }
-    
-    var jettons: [Jetton] {
-        accountInfoManager.jettons
+
+    func events(tagQueries: [TagQuery], beforeLt: Int64? = nil, limit: Int? = nil) -> [Event] {
+        eventManager.events(tagQueries: tagQueries, beforeLt: beforeLt, limit: limit)
     }
 
-    var syncStatePublisher: AnyPublisher<SyncState, Never> {
-        syncer.$state.eraseToAnyPublisher()
+    func eventPublisher(tagQueries: [TagQuery]) -> AnyPublisher<[Event], Never> {
+        eventManager.eventPublisher(tagQueries: tagQueries)
     }
 
-    var tonBalancePublisher: AnyPublisher<BigUInt, Never> {
-        accountInfoManager.tonBalancePublisher
-    }
+    // func estimateFee(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws -> Decimal {
+    //     guard let transactionSender else {
+    //         throw WalletError.watchOnly
+    //     }
+    //     let address = try FriendlyAddress(string: recipient)
+    //     let amount = Amount(value: amount, isMax: amount == balance)
 
-    func transactionsPublisher(tagQueries: [TransactionTagQuery]?) -> AnyPublisher<[FullTransaction], Never> {
-        transactionManager.fullTransactionsPublisher(tagQueries: tagQueries)
-    }
+    //     return try await transactionSender.estimatedFee(recipient: address, jetton: jetton, amount: amount, comment: comment)
+    // }
 
-    func transactions(tagQueries: [TransactionTagQuery], beforeLt: Int64? = nil, limit: Int? = nil) -> [FullTransaction] {
-        transactionManager.fullTransactions(tagQueries: tagQueries, beforeLt: beforeLt, limit: limit)
-    }
+    // func send(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws {
+    //     guard let transactionSender else {
+    //         throw WalletError.watchOnly
+    //     }
 
-    func estimateFee(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws -> Decimal {
-        guard let transactionSender else {
-            throw WalletError.watchOnly
-        }
-        let address = try FriendlyAddress(string: recipient)
-        let amount = Amount(value: amount, isMax: amount == balance)
+    //     let address = try FriendlyAddress(string: recipient)
+    //     let amount = Amount(value: amount, isMax: amount == balance)
 
-        return try await transactionSender.estimatedFee(recipient: address, jetton: jetton, amount: amount, comment: comment)
-    }
-
-    func send(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws {
-        guard let transactionSender else {
-            throw WalletError.watchOnly
-        }
-
-        let address = try FriendlyAddress(string: recipient)
-        let amount = Amount(value: amount, isMax: amount == balance)
-
-        return try await transactionSender.sendTransaction(recipient: address, jetton: jetton, amount: amount, comment: comment)
-    }
+    //     return try await transactionSender.sendTransaction(recipient: address, jetton: jetton, amount: amount, comment: comment)
+    // }
 
     func start() {
-        syncer.start()
+        // syncer.start()
     }
 
     func stop() {
-        syncer.stop()
+        // syncer.stop()
     }
 
     func refresh() {
-        syncer.refresh()
+        accountManager.sync()
+        jettonManager.sync()
+        eventManager.sync()
     }
 
-    func fetchTransaction(eventId _: String) async throws -> FullTransaction {
-        throw SyncError.notStarted
-    }
-    
     static func validate(address: String) throws {
-        _ = try FriendlyAddress(string: address)
+        _ = try Address.parse(address)
     }
 }
 
@@ -153,68 +145,41 @@ extension Kit {
         }
     }
 
-    public static func instance(type: WalletType, network: Network, walletId: String, apiKey _: String?, logger: Logger?) throws -> Kit {
+    public static func instance(type: WalletType, walletVersion: WalletVersion = .v4, network: Network = .mainNet, walletId: String, logger: Logger? = nil) throws -> Kit {
         let uniqueId = "\(walletId)-\(network.rawValue)"
 
-        let reachabilityManager = ReachabilityManager()
-        let databaseDirectoryUrl = try dataDirectoryUrl()
-        let syncerStorage = SyncerStorage(databaseDirectoryUrl: databaseDirectoryUrl, databaseFileName: "syncer-state-storage-\(uniqueId)")
-        let accountInfoStorage = AccountInfoStorage(databaseDirectoryUrl: databaseDirectoryUrl, databaseFileName: "account-info-storage-\(uniqueId)")
-        let transactionStorage = AccountEventStorage(databaseDirectoryUrl: databaseDirectoryUrl, databaseFileName: "account-events-storage-\(uniqueId)")
+        // let reachabilityManager = ReachabilityManager()
+        let databaseURL = try dataDirectoryUrl().appendingPathComponent("ton-\(uniqueId).sqlite")
 
-        let address = try type.address()
-        let decorationManager = DecorationManager(userAddress: address)
+        let dbPool = try DatabasePool(path: databaseURL.path)
 
-        let serverUrl = URL(string: "https://tonapi.io")!
-        var transport = TonTransport()
-        let apiClient = TonAPI.Client(serverURL: serverUrl, transport: transport.transport, middlewares: [])
-        let urlSession = URLSession(configuration: transport.urlSessionConfiguration)
-        let api = TonApi(tonAPIClient: apiClient, urlSession: urlSession, url: serverUrl)
+        let address = try type.address(walletVersion: walletVersion)
+        let api: IApi = TonApi(network: network)
 
-        let accountInfoManager = AccountInfoManager(storage: accountInfoStorage)
-        let transactionManager = TransactionManager(
-            userAddress: address,
-            storage: transactionStorage,
-            decorationManager: decorationManager
-        )
+        // let transactionSender = try type.keyPair.map { keyPair in
+        //     let wallet = WalletV4R2(publicKey: keyPair.publicKey.data)
+        //     let address = try wallet.address()
 
-        let streamingTonAPIClient = TonStreamingAPI.Client(serverURL: serverUrl, transport: transport.streamingTransport, middlewares: [])
-        let backgroundUpdateStore = BackgroundUpdateStore(streamingAPI: streamingTonAPIClient, logger: logger)
+        //     return TransactionSender(api: api, contract: wallet, sender: address, secretKey: keyPair.privateKey.data)
+        // }
 
-        let syncer = Syncer(
-            accountInfoManager: accountInfoManager,
-            transactionManager: transactionManager,
-            reachabilityManager: reachabilityManager,
-            api: api,
-            backgroundUpdateStore: backgroundUpdateStore,
-            storage: syncerStorage,
-            address: address,
-            logger: logger
-        )
+        let accountStorage = try AccountStorage(dbPool: dbPool)
+        let accountManager = AccountManager(address: address, api: api, storage: accountStorage, logger: logger)
 
-        let transactionSender = try type.keyPair.map { keyPair in
-            let wallet = WalletV4R2(publicKey: keyPair.publicKey.data)
-            let address = try wallet.address()
+        let jettonStorage = try JettonStorage(dbPool: dbPool)
+        let jettontManager = JettonManager(address: address, api: api, storage: jettonStorage, logger: logger)
 
-            return TransactionSender(api: api, contract: wallet, sender: address, secretKey: keyPair.privateKey.data)
-        }
+        let eventStorage = try EventStorage(dbPool: dbPool)
+        let eventManager = EventManager(address: address, api: api, storage: eventStorage, logger: logger)
 
         let kit = Kit(
-            address: address, network: network, uniqueId: uniqueId,
-            syncer: syncer,
-            accountInfoManager: accountInfoManager,
-            transactionManager: transactionManager,
-            transactionSender: transactionSender,
+            address: address,
+            network: network,
+            accountManager: accountManager,
+            jettonManager: jettontManager,
+            eventManager: eventManager,
             logger: logger
         )
-
-        let transferDecorator = TransferDecorator(address: address)
-        transferDecorator.decorations.append(IncomingDecoration.self)
-        transferDecorator.decorations.append(OutgoingDecoration.self)
-        transferDecorator.decorations.append(IncomingJettonDecoration.self)
-        transferDecorator.decorations.append(OutgoingJettonDecoration.self)
-
-        decorationManager.add(transactionDecorator: transferDecorator)
 
         return kit
     }
@@ -224,19 +189,19 @@ extension Kit {
 
         let url = try fileManager
             .url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("ton-api-kit", isDirectory: true)
+            .appendingPathComponent("ton-kit", isDirectory: true)
 
         try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
 
         return url
     }
 
-    private static func providerUrl(network: Network) -> String {
-        switch network {
-        case .mainNet: return "https://tonapi.io/"
-        case .testNet: return "https://testnet.tonapi.io/"
-        }
-    }
+    // private static func providerUrl(network: Network) -> String {
+    //     switch network {
+    //     case .mainNet: return "https://tonapi.io/"
+    //     case .testNet: return "https://testnet.tonapi.io/"
+    //     }
+    // }
 }
 
 public extension Kit {
@@ -244,12 +209,20 @@ public extension Kit {
         case full(KeyPair)
         case watch(Address)
 
-        func address() throws -> Address {
+        func address(walletVersion: WalletVersion) throws -> Address {
             switch self {
-            case let .watch(address): return address
+            case let .watch(address):
+                return address
             case let .full(keyPair):
-                let wallet = WalletV4R2(publicKey: keyPair.publicKey.data)
-                return try wallet.address()
+                switch walletVersion {
+                case .v3:
+                    fatalError() // todo
+                case .v4:
+                    let wallet = WalletV4R2(publicKey: keyPair.publicKey.data)
+                    return try wallet.address()
+                case .v5:
+                    fatalError() // todo
+                }
             }
         }
 
@@ -259,6 +232,12 @@ public extension Kit {
             case .watch: return nil
             }
         }
+    }
+
+    enum WalletVersion {
+        case v3
+        case v4
+        case v5
     }
 
     enum SyncError: Error {
