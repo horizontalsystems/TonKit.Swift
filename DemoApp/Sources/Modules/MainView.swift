@@ -39,13 +39,10 @@ struct MainView: View {
                     Label("Jetton Send", systemImage: "paperplane.circle")
                 }
 
-                VStack {
-                    Text("Receive")
-                    Spacer()
-                }
-                .tabItem {
-                    Label("Receive", systemImage: "tray.circle")
-                }
+                ReceiveView(tonKit: tonKit)
+                    .tabItem {
+                        Label("Receive", systemImage: "tray.circle")
+                    }
             }
         }
     }
