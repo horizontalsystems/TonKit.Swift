@@ -12,45 +12,83 @@ struct EventView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(viewModel.events, id: \.id) { event in
-                    VStack {
-                        info(title: "Id", value: event.id)
-                        info(title: "Lt", value: "\(event.lt)")
-                        info(title: "Timestamp", value: Date(timeIntervalSince1970: TimeInterval(event.timestamp)).formatted(date: .abbreviated, time: .standard))
-                        info(title: "Scam", value: "\(event.isScam)")
-                        info(title: "In Progress", value: "\(event.inProgress)")
+            VStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Type")
 
-                        ForEach(event.actions.indices, id: \.self) { index in
-                            let action = event.actions[index]
+                        Spacer()
 
-                            VStack {
-                                Divider()
-                                    .padding(.horizontal, -16)
-
-                                switch action.type {
-                                case let .tonTransfer(action):
-                                    tonTransfer(action: action)
-                                case let .jettonTransfer(action):
-                                    jettonTransfer(action: action)
-                                case let .smartContract(action):
-                                    smartContract(action: action)
-                                case let .unknown(rawType):
-                                    actionTitle(text: rawType)
-                                }
-
-                                info(title: "Status", value: action.status.rawValue)
+                        Picker("Event Type", selection: $viewModel.eventType) {
+                            ForEach(EventViewModel.EventType.allCases, id: \.self) { eventType in
+                                Text(eventType.rawValue.capitalized)
                             }
                         }
                     }
-                    .listRowSeparator(.hidden)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.gray.opacity(0.05))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(.gray.opacity(0.2), lineWidth: 1))
+
+                    HStack {
+                        Text("Token")
+
+                        Spacer()
+
+                        Picker("Event Token", selection: $viewModel.eventToken) {
+                            ForEach(viewModel.eventTokens, id: \.self) { eventToken in
+                                Text(eventToken.title)
+                            }
+                        }
+                    }
+
+                    TextField("Address", text: $viewModel.eventAddress, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(3)
+                        .padding(.top, 8)
                 }
+                .font(.system(size: 14))
+                .padding()
+
+                Divider()
+
+                List {
+                    ForEach(viewModel.events, id: \.id) { event in
+                        VStack {
+                            info(title: "Id", value: event.id)
+                            info(title: "Lt", value: "\(event.lt)")
+                            info(title: "Timestamp", value: Date(timeIntervalSince1970: TimeInterval(event.timestamp)).formatted(date: .abbreviated, time: .standard))
+                            info(title: "Scam", value: "\(event.isScam)")
+                            info(title: "In Progress", value: "\(event.inProgress)")
+
+                            ForEach(event.actions.indices, id: \.self) { index in
+                                let action = event.actions[index]
+
+                                VStack {
+                                    Divider()
+                                        .padding(.horizontal, -16)
+
+                                    switch action.type {
+                                    case let .tonTransfer(action):
+                                        tonTransfer(action: action)
+                                    case let .jettonTransfer(action):
+                                        jettonTransfer(action: action)
+                                    case let .smartContract(action):
+                                        smartContract(action: action)
+                                    case let .unknown(rawType):
+                                        actionTitle(text: rawType)
+                                    }
+
+                                    info(title: "Status", value: action.status.rawValue)
+                                }
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.gray.opacity(0.05))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(.gray.opacity(0.2), lineWidth: 1))
+                    }
+                }
+                .listStyle(.plain)
+                .frame(maxHeight: .infinity)
             }
-            .listStyle(.plain)
             .navigationTitle("Events")
             .navigationBarTitleDisplayMode(.inline)
         }

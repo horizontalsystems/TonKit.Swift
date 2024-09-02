@@ -1,13 +1,15 @@
 import GRDB
 import TonSwift
 
-public class Tag {
-    public let type: `Type`
+public class Tag: Codable {
+    public let eventId: String
+    public let type: `Type`?
     public let platform: Platform?
     public let jettonAddress: Address?
     public let addresses: [Address]
 
-    public init(type: `Type`, platform: Platform? = nil, jettonAddress: Address? = nil, addresses: [Address] = []) {
+    public init(eventId: String, type: Type? = nil, platform: Platform? = nil, jettonAddress: Address? = nil, addresses: [Address] = []) {
+        self.eventId = eventId
         self.type = type
         self.platform = platform
         self.jettonAddress = jettonAddress
@@ -23,7 +25,7 @@ public class Tag {
             return false
         }
 
-        if let contractAddress = tagQuery.jettonAddress, contractAddress != jettonAddress {
+        if let jettonAddress = tagQuery.jettonAddress, self.jettonAddress != jettonAddress {
             return false
         }
 
@@ -32,6 +34,16 @@ public class Tag {
         }
 
         return true
+    }
+}
+
+extension Tag: FetchableRecord, PersistableRecord {
+    enum Columns {
+        static let eventId = Column(CodingKeys.eventId)
+        static let type = Column(CodingKeys.type)
+        static let platform = Column(CodingKeys.platform)
+        static let jettonAddress = Column(CodingKeys.jettonAddress)
+        static let addresses = Column(CodingKeys.addresses)
     }
 }
 

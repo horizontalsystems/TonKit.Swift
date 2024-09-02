@@ -24,11 +24,21 @@ class EventStorage {
         migrator.registerMigration("Create event") { db in
             try db.create(table: "event", body: { t in
                 t.primaryKey(Event.Columns.id.name, .text, onConflict: .replace)
-                t.column(Event.Columns.lt.name, .text).notNull()
-                t.column(Event.Columns.timestamp.name, .text).notNull()
-                t.column(Event.Columns.isScam.name, .text).notNull()
-                t.column(Event.Columns.isProgress.name, .text).notNull()
+                t.column(Event.Columns.lt.name, .integer).notNull()
+                t.column(Event.Columns.timestamp.name, .integer).notNull()
+                t.column(Event.Columns.isScam.name, .boolean).notNull()
+                t.column(Event.Columns.isProgress.name, .boolean).notNull()
                 t.column(Event.Columns.actions.name, .text).notNull()
+            })
+        }
+
+        migrator.registerMigration("Create tag") { db in
+            try db.create(table: "tag", body: { t in
+                t.column(Tag.Columns.eventId.name, .text).notNull()
+                t.column(Tag.Columns.type.name, .text)
+                t.column(Tag.Columns.platform.name, .text)
+                t.column(Tag.Columns.jettonAddress.name, .text)
+                t.column(Tag.Columns.addresses.name, .text).notNull()
             })
         }
 
@@ -43,17 +53,63 @@ extension EventStorage {
         }
     }
 
-    func events(tagQueries _: [TagQuery], beforeLt: Int64?, limit: Int) throws -> [Event] {
+    func events(tagQuery: TagQuery, beforeLt: Int64?, limit: Int) throws -> [Event] {
         try dbPool.read { db in
-            var request = Event
-                .order(Event.Columns.lt.desc)
-                .limit(limit)
+            var arguments = [DatabaseValueConvertible]()
+            var whereConditions = [String]()
+            var joinClause = ""
 
-            if let beforeLt {
-                request = request.filter(Event.Columns.lt < beforeLt)
+            if !tagQuery.isEmpty {
+                if let type = tagQuery.type {
+                    whereConditions.append("tag.'\(Tag.Columns.type.name)' = ?")
+                    arguments.append(type.rawValue)
+                }
+                if let platform = tagQuery.platform {
+                    whereConditions.append("tag.'\(Tag.Columns.platform.name)' = ?")
+                    arguments.append(platform.rawValue)
+                }
+                if let jettonAddress = tagQuery.jettonAddress {
+                    whereConditions.append("tag.'\(Tag.Columns.jettonAddress.name)' = ?")
+                    arguments.append(jettonAddress)
+                }
+                if let address = tagQuery.address {
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = .sortedKeys
+
+                    do {
+                        let addressData = try encoder.encode(address)
+                        if let addressJson = String(data: addressData, encoding: .utf8) {
+                            whereConditions.append("LOWER(tag.'\(Tag.Columns.addresses.name)') LIKE ?")
+                            arguments.append("%" + addressJson + "%")
+                        }
+                    } catch {}
+                }
+
+                joinClause = "INNER JOIN tag ON event.\(Event.Columns.id.name) = tag.\(Tag.Columns.eventId.name)"
             }
 
-            return try request.fetchAll(db)
+            if let beforeLt {
+                whereConditions.append("event.\(Event.Columns.lt.name) < ?")
+                arguments.append(beforeLt)
+            }
+
+            let limitClause = "LIMIT \(limit)"
+            let orderClause = "ORDER BY event.\(Event.Columns.lt.name) DESC"
+            let whereClause = whereConditions.count > 0 ? "WHERE \(whereConditions.joined(separator: " AND "))" : ""
+
+            let sql = """
+            SELECT DISTINCT event.*
+            FROM event
+            \(joinClause)
+            \(whereClause)
+            \(orderClause)
+            \(limitClause)
+            """
+
+            let rows = try Row.fetchAll(db.makeStatement(sql: sql), arguments: StatementArguments(arguments))
+            return try rows.map { row -> Event in
+                try Event(row: row)
+            }
         }
     }
 
@@ -85,6 +141,16 @@ extension EventStorage {
         _ = try dbPool.write { db in
             for event in events {
                 try event.insert(db)
+            }
+        }
+    }
+
+    func resave(tags: [Tag], eventIds: [String]) throws {
+        _ = try dbPool.write { db in
+            try Tag.filter(eventIds.contains(Tag.Columns.eventId)).deleteAll(db)
+
+            for tag in tags {
+                try tag.insert(db)
             }
         }
     }

@@ -85,12 +85,12 @@ public extension Kit {
         address
     }
 
-    func events(tagQueries: [TagQuery], beforeLt: Int64? = nil, limit: Int? = nil) -> [Event] {
-        eventManager.events(tagQueries: tagQueries, beforeLt: beforeLt, limit: limit)
+    func events(tagQuery: TagQuery, beforeLt: Int64? = nil, limit: Int? = nil) -> [Event] {
+        eventManager.events(tagQuery: tagQuery, beforeLt: beforeLt, limit: limit)
     }
 
-    func eventPublisher(tagQueries: [TagQuery]) -> AnyPublisher<[Event], Never> {
-        eventManager.eventPublisher(tagQueries: tagQueries)
+    func eventPublisher(tagQuery: TagQuery) -> AnyPublisher<[Event], Never> {
+        eventManager.eventPublisher(tagQuery: tagQuery)
     }
 
     // func estimateFee(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws -> Decimal {
@@ -133,8 +133,8 @@ public extension Kit {
     }
 }
 
-extension Kit {
-    public static func clear(exceptFor excludedFiles: [String]) throws {
+public extension Kit {
+    static func clear(exceptFor excludedFiles: [String]) throws {
         let fileManager = FileManager.default
         let fileUrls = try fileManager.contentsOfDirectory(at: dataDirectoryUrl(), includingPropertiesForKeys: nil)
 
@@ -145,7 +145,7 @@ extension Kit {
         }
     }
 
-    public static func instance(type: WalletType, walletVersion: WalletVersion = .v4, network: Network = .mainNet, walletId: String, logger: Logger? = nil) throws -> Kit {
+    static func instance(type: WalletType, walletVersion: WalletVersion = .v4, network: Network = .mainNet, walletId: String, logger: Logger? = nil) throws -> Kit {
         let uniqueId = "\(walletId)-\(network.rawValue)"
 
         // let reachabilityManager = ReachabilityManager()
