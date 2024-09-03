@@ -1,6 +1,5 @@
 import Combine
 import Foundation
-import HdWalletKit
 import HsToolKit
 import TonKit
 import TonSwift
@@ -38,20 +37,7 @@ class AppViewModel: ObservableObject {
     }
 
     private func initKit(words: [String]) throws {
-        try Mnemonic.validate(words: words)
-
-        let configuration = Configuration.shared
-
-        guard let seed = Mnemonic.seed(mnemonic: words, passphrase: configuration.defaultPassphrase) else {
-            throw LoginError.seedGenerationFailed
-        }
-
-        let hdWallet = HDWallet(seed: seed, coinType: 607, xPrivKey: 0, curve: .ed25519)
-        let privateKey = try hdWallet.privateKey(account: 0)
-        let privateRaw = Data(privateKey.raw.bytes)
-        let pair = try TweetNacl.NaclSign.KeyPair.keyPair(fromSeed: privateRaw)
-        let keyPair = KeyPair(publicKey: .init(data: pair.publicKey), privateKey: .init(data: pair.secretKey))
-
+        let keyPair = try Mnemonic.mnemonicToPrivateKey(mnemonicArray: words)
         try initKit(type: .full(keyPair))
     }
 

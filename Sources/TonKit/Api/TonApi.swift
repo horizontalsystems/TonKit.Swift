@@ -48,6 +48,23 @@ class TonApi: IApi {
             )
         }
     }
+
+    func getAccountSeqno(address: Address) async throws -> Int {
+        try await WalletAPI.getAccountSeqno(accountId: address.toRaw()).seqno
+    }
+
+    func getRawTime() async throws -> Int {
+        try await LiteServerAPI.getRawTime().time
+    }
+
+    func estimateFee(boc: String) async throws -> BigUInt {
+        let result = try await EmulationAPI.emulateMessageToWallet(emulateMessageToWalletRequest: .init(boc: boc))
+        return BigUInt(result.trace.transaction.totalFees)
+    }
+
+    func send(boc: String) async throws {
+        try await BlockchainAPI.sendBlockchainMessage(sendBlockchainMessageRequest: .init(boc: boc))
+    }
 }
 
 extension Account.Status {

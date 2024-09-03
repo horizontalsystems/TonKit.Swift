@@ -23,13 +23,10 @@ struct MainView: View {
                 }
 
             if !tonKit.watchOnly {
-                VStack {
-                    Text("Send")
-                    Spacer()
-                }
-                .tabItem {
-                    Label("Send", systemImage: "paperplane.circle")
-                }
+                SendView(tonKit: tonKit)
+                    .tabItem {
+                        Label("Send", systemImage: "paperplane.circle")
+                    }
 
                 VStack {
                     Text("Jetton Send")

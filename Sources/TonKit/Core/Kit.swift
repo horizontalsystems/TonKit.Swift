@@ -2,7 +2,6 @@ import BigInt
 import Combine
 import Foundation
 import GRDB
-import HdWalletKit
 import HsCryptoKit
 import HsToolKit
 import TonAPI
@@ -18,17 +17,19 @@ public class Kit {
     private let accountManager: AccountManager
     private let jettonManager: JettonManager
     private let eventManager: EventManager
+    private let transactionSender: TransactionSender?
 
     private let logger: Logger?
 
     // @Published public var updateState: String = "idle"
 
-    init(address: Address, network: Network, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, logger: Logger?) {
+    init(address: Address, network: Network, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, transactionSender: TransactionSender?, logger: Logger?) {
         self.address = address
         self.network = network
         self.accountManager = accountManager
         self.jettonManager = jettonManager
         self.eventManager = eventManager
+        self.transactionSender = transactionSender
         self.logger = logger
     }
 }
@@ -37,8 +38,7 @@ public class Kit {
 
 public extension Kit {
     var watchOnly: Bool {
-        false
-        // transactionSender == nil
+        transactionSender == nil
     }
 
     var syncState: SyncState {
@@ -93,26 +93,37 @@ public extension Kit {
         eventManager.eventPublisher(tagQuery: tagQuery)
     }
 
-    // func estimateFee(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws -> Decimal {
-    //     guard let transactionSender else {
-    //         throw WalletError.watchOnly
-    //     }
-    //     let address = try FriendlyAddress(string: recipient)
-    //     let amount = Amount(value: amount, isMax: amount == balance)
+    func estimateFee(recipient: FriendlyAddress, amount: SendAmount, comment: String?) async throws -> BigUInt {
+        guard let transactionSender else {
+            throw WalletError.watchOnly
+        }
 
-    //     return try await transactionSender.estimatedFee(recipient: address, jetton: jetton, amount: amount, comment: comment)
-    // }
+        return try await transactionSender.estimateFee(recipient: recipient, amount: amount, comment: comment)
+    }
 
-    // func send(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws {
-    //     guard let transactionSender else {
-    //         throw WalletError.watchOnly
-    //     }
+    func estimateFee(jetton: Jetton, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws -> BigUInt {
+        guard let transactionSender else {
+            throw WalletError.watchOnly
+        }
 
-    //     let address = try FriendlyAddress(string: recipient)
-    //     let amount = Amount(value: amount, isMax: amount == balance)
+        return try await transactionSender.estimateFee(jetton: jetton, recipient: recipient, amount: amount, comment: comment)
+    }
 
-    //     return try await transactionSender.sendTransaction(recipient: address, jetton: jetton, amount: amount, comment: comment)
-    // }
+    func send(recipient: FriendlyAddress, amount: SendAmount, comment: String?) async throws {
+        guard let transactionSender else {
+            throw WalletError.watchOnly
+        }
+
+        return try await transactionSender.send(recipient: recipient, amount: amount, comment: comment)
+    }
+
+    func send(jetton: Jetton, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws {
+        guard let transactionSender else {
+            throw WalletError.watchOnly
+        }
+
+        return try await transactionSender.send(jetton: jetton, recipient: recipient, amount: amount, comment: comment)
+    }
 
     func start() {
         // syncer.start()
@@ -153,15 +164,29 @@ public extension Kit {
 
         let dbPool = try DatabasePool(path: databaseURL.path)
 
-        let address = try type.address(walletVersion: walletVersion)
         let api: IApi = TonApi(network: network)
 
-        // let transactionSender = try type.keyPair.map { keyPair in
-        //     let wallet = WalletV4R2(publicKey: keyPair.publicKey.data)
-        //     let address = try wallet.address()
+        let address: Address
+        var transactionSender: TransactionSender?
 
-        //     return TransactionSender(api: api, contract: wallet, sender: address, secretKey: keyPair.privateKey.data)
-        // }
+        switch type {
+        case let .full(keyPair):
+            let walletContract: WalletContract
+
+            switch walletVersion {
+            case .v3:
+                fatalError() // todo
+            case .v4:
+                walletContract = WalletV4R2(publicKey: keyPair.publicKey.data)
+            case .v5:
+                fatalError() // todo
+            }
+
+            address = try walletContract.address()
+            transactionSender = TransactionSender(api: api, contract: walletContract, sender: address, secretKey: keyPair.privateKey.data)
+        case let .watch(_address):
+            address = _address
+        }
 
         let accountStorage = try AccountStorage(dbPool: dbPool)
         let accountManager = AccountManager(address: address, api: api, storage: accountStorage, logger: logger)
@@ -178,6 +203,7 @@ public extension Kit {
             accountManager: accountManager,
             jettonManager: jettontManager,
             eventManager: eventManager,
+            transactionSender: transactionSender,
             logger: logger
         )
 
@@ -195,43 +221,12 @@ public extension Kit {
 
         return url
     }
-
-    // private static func providerUrl(network: Network) -> String {
-    //     switch network {
-    //     case .mainNet: return "https://tonapi.io/"
-    //     case .testNet: return "https://testnet.tonapi.io/"
-    //     }
-    // }
 }
 
 public extension Kit {
     enum WalletType {
         case full(KeyPair)
         case watch(Address)
-
-        func address(walletVersion: WalletVersion) throws -> Address {
-            switch self {
-            case let .watch(address):
-                return address
-            case let .full(keyPair):
-                switch walletVersion {
-                case .v3:
-                    fatalError() // todo
-                case .v4:
-                    let wallet = WalletV4R2(publicKey: keyPair.publicKey.data)
-                    return try wallet.address()
-                case .v5:
-                    fatalError() // todo
-                }
-            }
-        }
-
-        var keyPair: KeyPair? {
-            switch self {
-            case let .full(keyPair): return keyPair
-            case .watch: return nil
-            }
-        }
     }
 
     enum WalletVersion {
@@ -242,16 +237,16 @@ public extension Kit {
 
     enum SyncError: Error {
         case notStarted
-        case noNetworkConnection
-        case disconnected
-    }
-
-    enum KitError: Error {
-        case parsingError
-        case custom(String)
+        // case noNetworkConnection
+        // case disconnected
     }
 
     enum WalletError: Error {
         case watchOnly
+    }
+
+    enum SendAmount {
+        case amount(value: BigUInt)
+        case max
     }
 }

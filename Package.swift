@@ -21,7 +21,6 @@ let package = Package(
         .package(url: "https://github.com/tonkeeper/ton-api-swift.git", .upToNextMajor(from: "0.2.0")),
         .package(url: "https://github.com/tonkeeper/ton-swift.git", .upToNextMajor(from: "1.0.16")),
         .package(url: "https://github.com/horizontalsystems/HsCryptoKit.Swift.git", .upToNextMajor(from: "1.2.1")),
-        .package(url: "https://github.com/horizontalsystems/HdWalletKit.Swift.git", .upToNextMajor(from: "1.2.1")),
         .package(url: "https://github.com/horizontalsystems/HsToolKit.Swift.git", .upToNextMajor(from: "2.0.0")),
         .package(url: "https://github.com/horizontalsystems/HsExtensions.Swift.git", .upToNextMajor(from: "1.0.6")),
     ],
@@ -40,7 +39,6 @@ let package = Package(
                 .product(name: "TonSwift", package: "ton-swift"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
                 .product(name: "HsCryptoKit", package: "HsCryptoKit.Swift"),
-                .product(name: "HdWalletKit", package: "HdWalletKit.Swift"),
                 .product(name: "HsToolKit", package: "HsToolKit.Swift"),
                 .product(name: "HsExtensions", package: "HsExtensions.Swift"),
             ]

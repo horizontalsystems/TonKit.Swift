@@ -1,5 +1,5 @@
 import SwiftUI
-import HdWalletKit
+import TonSwift
 
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
@@ -23,12 +23,8 @@ struct LoginView: View {
 
                 VStack(spacing: 24) {
                     Button("Generate") {
-                        do {
-                            let words = try Mnemonic.generate(wordCount: .twentyFour)
-                            mnemonic = words.joined(separator: " ")
-                        } catch {
-                            alertText = "\(error)"
-                        }
+                        let words = Mnemonic.mnemonicNew()
+                        mnemonic = words.joined(separator: " ")
                     }
 
                     Button("Login") {
