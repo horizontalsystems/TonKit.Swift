@@ -63,26 +63,25 @@ public struct TokenTransferMessageBuilder {
         timeout: UInt64?,
         signClosure: (WalletTransfer) throws -> Data
     ) throws -> String {
-        return try ExternalMessageTransferBuilder
-            .externalMessageTransfer(
-                contract: contract,
-                sender: sender,
-                seqno: seqno,
-                internalMessages: { sender in
-                    let internalMessage = try JettonTransferMessage.internalMessage(
-                        jettonAddress: tokenAddress,
-                        amount: BigInt(value),
-                        bounce: isBounceable,
-                        to: recipientAddress,
-                        from: sender,
-                        comment: comment
-                    )
+        return try ExternalMessageTransferBuilder.externalMessageTransfer(
+            contract: contract,
+            sender: sender,
+            seqno: seqno,
+            internalMessages: { sender in
+                let internalMessage = try JettonTransferMessage.internalMessage(
+                    jettonAddress: tokenAddress,
+                    amount: BigInt(value),
+                    bounce: isBounceable,
+                    to: recipientAddress,
+                    from: sender,
+                    comment: comment
+                )
 
-                    return [internalMessage]
-                },
-                timeout: timeout,
-                signClosure: signClosure
-            )
+                return [internalMessage]
+            },
+            timeout: timeout,
+            signClosure: signClosure
+        )
     }
 }
 

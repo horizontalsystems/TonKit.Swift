@@ -101,12 +101,12 @@ public extension Kit {
         return try await transactionSender.estimateFee(recipient: recipient, amount: amount, comment: comment)
     }
 
-    func estimateFee(jetton: Jetton, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws -> BigUInt {
+    func estimateFee(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws -> BigUInt {
         guard let transactionSender else {
             throw WalletError.watchOnly
         }
 
-        return try await transactionSender.estimateFee(jetton: jetton, recipient: recipient, amount: amount, comment: comment)
+        return try await transactionSender.estimateFee(jettonWallet: jettonWallet, recipient: recipient, amount: amount, comment: comment)
     }
 
     func send(recipient: FriendlyAddress, amount: SendAmount, comment: String?) async throws {
@@ -117,12 +117,12 @@ public extension Kit {
         return try await transactionSender.send(recipient: recipient, amount: amount, comment: comment)
     }
 
-    func send(jetton: Jetton, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws {
+    func send(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws {
         guard let transactionSender else {
             throw WalletError.watchOnly
         }
 
-        return try await transactionSender.send(jetton: jetton, recipient: recipient, amount: amount, comment: comment)
+        return try await transactionSender.send(jettonWallet: jettonWallet, recipient: recipient, amount: amount, comment: comment)
     }
 
     func start() {

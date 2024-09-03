@@ -3,7 +3,7 @@ import Foundation
 import GRDB
 import TonSwift
 
-public struct JettonBalance: Codable, Equatable {
+public struct JettonBalance: Codable, Equatable, Hashable {
     public let jettonAddress: Address
     public let jetton: Jetton
     public let balance: BigUInt

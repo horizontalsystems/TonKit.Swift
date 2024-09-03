@@ -12,6 +12,18 @@ struct SendView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
+                HStack {
+                    Text("Token")
+
+                    Spacer()
+
+                    Picker("Token", selection: $viewModel.token) {
+                        ForEach(viewModel.tokens, id: \.self) { token in
+                            Text(token.title)
+                        }
+                    }
+                }
+
                 TextField("Address", text: $viewModel.address, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(3)

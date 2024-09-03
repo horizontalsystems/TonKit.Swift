@@ -7,6 +7,8 @@ import TonSwift
 class SendViewModel: ObservableObject {
     private let tonKit: Kit
 
+    @Published var token: Token = .native
+
     @Published var address: String = Configuration.shared.defaultSendAddress {
         didSet {
             estimateFee()
@@ -55,8 +57,15 @@ class SendViewModel: ObservableObject {
         let trimmedComment = comment.trimmingCharacters(in: .whitespaces)
         let comment = trimmedComment.isEmpty ? nil : trimmedComment
 
-        Task { [weak self, tonKit] in
-            let fee = try await tonKit.estimateFee(recipient: address, amount: .amount(value: amount), comment: comment)
+        Task { [weak self, token, tonKit] in
+            let fee: BigUInt
+
+            switch token {
+            case .native:
+                fee = try await tonKit.estimateFee(recipient: address, amount: .amount(value: amount), comment: comment)
+            case let .jetton(jettonBalance):
+                fee = try await tonKit.estimateFee(jettonWallet: jettonBalance.walletAddress, recipient: address, amount: amount, comment: comment)
+            }
 
             await MainActor.run { [weak self] in
                 self?.estimatedFee = fee.tonDecimalValue.map { "\($0) TON" }
@@ -64,8 +73,16 @@ class SendViewModel: ObservableObject {
         }
     }
 
+    var tokens: [Token] {
+        let jettons: [Token] = tonKit.jettonBalanceMap.values.map { jettonBalance in
+            .jetton(jettonBalance: jettonBalance)
+        }
+
+        return [.native] + jettons
+    }
+
     func send() {
-        Task { [weak self, address, amount, comment, tonKit] in
+        Task { [weak self, token, address, amount, comment, tonKit] in
             do {
                 let address = try FriendlyAddress(string: address)
 
@@ -80,10 +97,19 @@ class SendViewModel: ObservableObject {
                 let trimmedComment = comment.trimmingCharacters(in: .whitespaces)
                 let comment = trimmedComment.isEmpty ? nil : trimmedComment
 
-                try await tonKit.send(recipient: address, amount: .amount(value: amount), comment: comment)
+                let successMessage: String
+
+                switch token {
+                case .native:
+                    try await tonKit.send(recipient: address, amount: .amount(value: amount), comment: comment)
+                    successMessage = "You have successfully sent \(decimalAmount) TON to \(address.address.toFriendlyWallet)"
+                case let .jetton(jettonBalance):
+                    try await tonKit.send(jettonWallet: jettonBalance.walletAddress, recipient: address, amount: amount, comment: comment)
+                    successMessage = "You have successfully sent \(decimalAmount) \(jettonBalance.jetton.symbol) to \(address.address.toFriendlyWallet)"
+                }
 
                 await MainActor.run { [weak self] in
-                    self?.sentAlertText = "You have successfully sent \(decimalAmount) TON to \(address.address.toFriendlyWallet)"
+                    self?.sentAlertText = successMessage
                 }
             } catch {
                 await MainActor.run { [weak self] in
@@ -95,6 +121,18 @@ class SendViewModel: ObservableObject {
 }
 
 extension SendViewModel {
+    enum Token: Hashable {
+        case native
+        case jetton(jettonBalance: JettonBalance)
+
+        var title: String {
+            switch self {
+            case .native: return "TON"
+            case let .jetton(jettonBalance): return jettonBalance.jetton.symbol
+            }
+        }
+    }
+
     enum SendError: Error {
         case invalidAmount
     }

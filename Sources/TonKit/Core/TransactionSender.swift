@@ -61,7 +61,7 @@ extension TransactionSender {
         return try await api.estimateFee(boc: boc)
     }
 
-    func estimateFee(jetton: Jetton, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws -> BigUInt {
+    func estimateFee(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws -> BigUInt {
         let seqno = try await api.getAccountSeqno(address: sender)
         let timeout = await safeTimeout()
 
@@ -79,7 +79,7 @@ extension TransactionSender {
             try transfer.signMessage(signer: WalletTransferEmptyKeySigner())
         }
 
-        let boc = try JettonTransferBoc(jetton: jetton.address, transferData: data).create()
+        let boc = try JettonTransferBoc(jetton: jettonWallet, transferData: data).create()
 
         return try await api.estimateFee(boc: boc)
     }
@@ -120,7 +120,7 @@ extension TransactionSender {
         return try await api.send(boc: boc)
     }
 
-    func send(jetton: Jetton, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws {
+    func send(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws {
         let seqno = try await api.getAccountSeqno(address: sender)
         let timeout = await safeTimeout()
         let secretKey = secretKey
@@ -139,7 +139,7 @@ extension TransactionSender {
             try transfer.signMessage(signer: WalletTransferSecretKeySigner(secretKey: secretKey))
         }
 
-        let boc = try JettonTransferBoc(jetton: jetton.address, transferData: data).create()
+        let boc = try JettonTransferBoc(jetton: jettonWallet, transferData: data).create()
 
         return try await api.send(boc: boc)
     }
