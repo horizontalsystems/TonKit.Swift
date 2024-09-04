@@ -7,6 +7,7 @@ public struct Event: Codable {
     public let timestamp: Int64
     public let isScam: Bool
     public let inProgress: Bool
+    public let extra: Int64
     public let actions: [Action]
 
     func tags(address: Address) -> [Tag] {
@@ -47,6 +48,7 @@ extension Event: FetchableRecord, PersistableRecord {
         static let timestamp = Column(CodingKeys.timestamp)
         static let isScam = Column(CodingKeys.isScam)
         static let isProgress = Column(CodingKeys.inProgress)
+        static let extra = Column(CodingKeys.extra)
         static let actions = Column(CodingKeys.actions)
     }
 }

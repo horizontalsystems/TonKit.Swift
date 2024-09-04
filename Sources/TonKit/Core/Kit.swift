@@ -156,7 +156,8 @@ public extension Kit {
         }
     }
 
-    static func instance(type: WalletType, walletVersion: WalletVersion = .v4, network: Network = .mainNet, walletId: String, logger: Logger? = nil) throws -> Kit {
+    static func instance(type: WalletType, walletVersion: WalletVersion = .v4, network: Network = .mainNet, walletId: String, minLogLevel: Logger.Level = .error) throws -> Kit {
+        let logger = Logger(minLogLevel: minLogLevel)
         let uniqueId = "\(walletId)-\(network.rawValue)"
 
         // let reachabilityManager = ReachabilityManager()

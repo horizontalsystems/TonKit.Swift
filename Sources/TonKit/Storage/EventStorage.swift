@@ -28,6 +28,7 @@ class EventStorage {
                 t.column(Event.Columns.timestamp.name, .integer).notNull()
                 t.column(Event.Columns.isScam.name, .boolean).notNull()
                 t.column(Event.Columns.isProgress.name, .boolean).notNull()
+                t.column(Event.Columns.extra.name, .integer).notNull()
                 t.column(Event.Columns.actions.name, .text).notNull()
             })
         }

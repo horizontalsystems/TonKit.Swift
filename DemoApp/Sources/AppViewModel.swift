@@ -21,14 +21,13 @@ class AppViewModel: ObservableObject {
 
     private func initKit(type: Kit.WalletType) throws {
         let configuration = Configuration.shared
-        let logger = Logger(minLogLevel: configuration.minLogLevel)
 
         let tonKit = try Kit.instance(
             type: type,
             walletVersion: .v4,
             network: configuration.network,
             walletId: "wallet-id",
-            logger: logger
+            minLogLevel: configuration.minLogLevel
         )
 
         tonKit.refresh()

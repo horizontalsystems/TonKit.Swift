@@ -56,6 +56,7 @@ struct EventView: View {
                             info(title: "Timestamp", value: Date(timeIntervalSince1970: TimeInterval(event.timestamp)).formatted(date: .abbreviated, time: .standard))
                             info(title: "Scam", value: "\(event.isScam)")
                             info(title: "In Progress", value: "\(event.inProgress)")
+                            info(title: "Extra", value: "\(event.extra)")
 
                             ForEach(event.actions.indices, id: \.self) { index in
                                 let action = event.actions[index]
@@ -69,6 +70,14 @@ struct EventView: View {
                                         tonTransfer(action: action)
                                     case let .jettonTransfer(action):
                                         jettonTransfer(action: action)
+                                    case let .jettonBurn(action):
+                                        jettonBurn(action: action)
+                                    case let .jettonMint(action):
+                                        jettonMint(action: action)
+                                    case let .contractDeploy(action):
+                                        contractDeploy(action: action)
+                                    case let .jettonSwap(action):
+                                        jettonSwap(action: action)
                                     case let .smartContract(action):
                                         smartContract(action: action)
                                     case let .unknown(rawType):
@@ -121,6 +130,47 @@ struct EventView: View {
         }
 
         info(title: "Jetton", value: action.jetton.address.toFriendlyContract)
+    }
+
+    @ViewBuilder private func jettonBurn(action: Action.JettonBurn) -> some View {
+        actionTitle(text: "Jetton Burn")
+        info(title: "Sender", value: action.sender.toFriendly)
+        info(title: "Amount", value: action.amount.decimalValue(decimals: action.jetton.decimals).map { "\($0) \(action.jetton.symbol)" } ?? "n/a")
+        info(title: "Jetton", value: action.jetton.address.toFriendlyContract)
+    }
+
+    @ViewBuilder private func jettonMint(action: Action.JettonMint) -> some View {
+        actionTitle(text: "Jetton Mint")
+        info(title: "Recipient", value: action.recipient.toFriendly)
+        info(title: "Amount", value: action.amount.decimalValue(decimals: action.jetton.decimals).map { "\($0) \(action.jetton.symbol)" } ?? "n/a")
+        info(title: "Jetton", value: action.jetton.address.toFriendlyContract)
+    }
+
+    @ViewBuilder private func contractDeploy(action: Action.ContractDeploy) -> some View {
+        actionTitle(text: "Contract Deploy")
+        info(title: "Address", value: action.address.toFriendlyContract)
+        info(title: "Interfaces", value: action.interfaces.joined(separator: ", "))
+    }
+
+    @ViewBuilder private func jettonSwap(action: Action.JettonSwap) -> some View {
+        actionTitle(text: "Jetton Swap")
+        info(title: "Dex", value: action.dex)
+
+        if let jetton = action.jettonMasterIn {
+            info(title: "Amount In", value: action.amountIn.decimalValue(decimals: jetton.decimals).map { "\($0) \(jetton.symbol)" } ?? "n/a")
+        }
+
+        if let jetton = action.jettonMasterOut {
+            info(title: "Amount Out", value: action.amountIn.decimalValue(decimals: jetton.decimals).map { "\($0) \(jetton.symbol)" } ?? "n/a")
+        }
+
+        if let tonIn = action.tonIn {
+            info(title: "Ton In", value: tonIn.tonDecimalValue.map { "\($0) TON" } ?? "n/a")
+        }
+
+        if let tonOut = action.tonOut {
+            info(title: "Ton Out", value: tonOut.tonDecimalValue.map { "\($0) TON" } ?? "n/a")
+        }
     }
 
     @ViewBuilder private func smartContract(action: Action.SmartContract) -> some View {
