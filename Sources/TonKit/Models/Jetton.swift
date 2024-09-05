@@ -6,7 +6,7 @@ public struct Jetton: Codable, Equatable, Hashable {
     public let name: String
     public let symbol: String
     public let decimals: Int
-    public let image: String
+    public let image: String?
     public let verification: VerificationType
 }
 

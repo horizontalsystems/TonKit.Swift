@@ -54,6 +54,11 @@ class TonApi: IApi {
         try await WalletAPI.getAccountSeqno(accountId: address.toRaw()).seqno
     }
 
+    func getJettonInfo(address: Address) async throws -> Jetton {
+        let jettonInfo = try await JettonsAPI.getJettonInfo(accountId: address.toRaw())
+        return try Jetton(jettonInfo: jettonInfo)
+    }
+
     func getRawTime() async throws -> Int {
         try await LiteServerAPI.getRawTime().time
     }
@@ -87,6 +92,15 @@ extension Jetton {
         symbol = jetton.symbol
         decimals = jetton.decimals
         image = jetton.image
+        verification = Jetton.VerificationType(verification: jetton.verification)
+    }
+
+    init(jettonInfo jetton: JettonInfo) throws {
+        address = try Address.parse(raw: jetton.metadata.address)
+        name = jetton.metadata.name
+        symbol = jetton.metadata.symbol
+        decimals = Int(jetton.metadata.decimals) ?? 9
+        image = jetton.metadata.image
         verification = Jetton.VerificationType(verification: jetton.verification)
     }
 }

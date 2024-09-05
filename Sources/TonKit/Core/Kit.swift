@@ -9,8 +9,6 @@ import TonStreamingAPI
 import TonSwift
 
 public class Kit {
-    // private var cancellables = Set<AnyCancellable>()
-
     private let address: Address
     private let network: Network
 
@@ -20,8 +18,6 @@ public class Kit {
     private let transactionSender: TransactionSender?
 
     private let logger: Logger?
-
-    // @Published public var updateState: String = "idle"
 
     init(address: Address, network: Network, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, transactionSender: TransactionSender?, logger: Logger?) {
         self.address = address
@@ -169,7 +165,7 @@ public extension Kit {
 
         let dbPool = try DatabasePool(path: databaseURL.path)
 
-        let api: IApi = TonApi(network: network)
+        let api = api(network: network)
 
         let address: Address
         var transactionSender: TransactionSender?
@@ -213,6 +209,14 @@ public extension Kit {
         )
 
         return kit
+    }
+
+    static func jetton(network: Network = .mainNet, address: Address) async throws -> Jetton {
+        try await api(network: network).getJettonInfo(address: address)
+    }
+
+    private static func api(network: Network) -> IApi {
+        TonApi(network: network)
     }
 
     private static func dataDirectoryUrl() throws -> URL {
