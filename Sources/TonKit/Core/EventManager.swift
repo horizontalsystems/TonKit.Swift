@@ -73,6 +73,14 @@ extension EventManager {
         }
     }
 
+    func tagTokens() -> [TagToken] {
+        do {
+            return try storage.tagTokens()
+        } catch {
+            return []
+        }
+    }
+
     func sync() {
         logger?.log(level: .debug, message: "Syncing transactions...")
 

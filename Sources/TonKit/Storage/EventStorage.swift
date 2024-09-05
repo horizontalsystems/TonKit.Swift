@@ -132,6 +132,20 @@ extension EventStorage {
         }
     }
 
+    func tagTokens() throws -> [TagToken] {
+        try dbPool.write { db in
+            let request = Tag
+                .filter(Tag.Columns.platform != nil)
+                .select(Tag.Columns.platform, Tag.Columns.jettonAddress)
+                .distinct()
+            let rows = try Row.fetchAll(db, request)
+
+            return rows.compactMap { row in
+                TagToken(platform: row[0], jettonAddress: row[1])
+            }
+        }
+    }
+
     func save(eventSyncState: EventSyncState) throws {
         _ = try dbPool.write { db in
             try eventSyncState.insert(db)

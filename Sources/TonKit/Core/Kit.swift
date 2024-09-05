@@ -93,6 +93,10 @@ public extension Kit {
         eventManager.eventPublisher(tagQuery: tagQuery)
     }
 
+    func tagTokens() -> [TagToken] {
+        eventManager.tagTokens()
+    }
+
     func estimateFee(recipient: FriendlyAddress, amount: SendAmount, comment: String?) async throws -> BigUInt {
         guard let transactionSender else {
             throw WalletError.watchOnly

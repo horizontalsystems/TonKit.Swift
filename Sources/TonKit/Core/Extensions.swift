@@ -60,3 +60,17 @@ extension Jetton.VerificationType: DatabaseValueConvertible {
         return Jetton.VerificationType(rawValue: value)
     }
 }
+
+extension Tag.Platform: DatabaseValueConvertible {
+    public var databaseValue: DatabaseValue {
+        rawValue.databaseValue
+    }
+
+    public static func fromDatabaseValue(_ dbValue: DatabaseValue) -> Tag.Platform? {
+        guard case let DatabaseValue.Storage.string(value) = dbValue.storage else {
+            return nil
+        }
+
+        return Tag.Platform(rawValue: value)
+    }
+}
