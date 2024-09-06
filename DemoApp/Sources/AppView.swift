@@ -6,8 +6,8 @@ struct AppView: App {
 
     var body: some Scene {
         WindowGroup {
-            if let tonKit = viewModel.tonKit {
-                MainView(appViewModel: viewModel, tonKit: tonKit)
+            if viewModel.tonKit != nil {
+                MainView(appViewModel: viewModel)
             } else {
                 LoginView(appViewModel: viewModel)
             }

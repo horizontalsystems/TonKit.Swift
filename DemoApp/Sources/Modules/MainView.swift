@@ -3,32 +3,30 @@ import TonKit
 
 struct MainView: View {
     @ObservedObject private var appViewModel: AppViewModel
-    private let tonKit: Kit
 
-    init(appViewModel: AppViewModel, tonKit: Kit) {
+    init(appViewModel: AppViewModel) {
         self.appViewModel = appViewModel
-        self.tonKit = tonKit
     }
 
     var body: some View {
         TabView {
-            BalanceView(appViewModel: appViewModel, tonKit: tonKit)
+            BalanceView(appViewModel: appViewModel)
                 .tabItem {
                     Label("Balance", systemImage: "creditcard.circle")
                 }
 
-            EventView(appViewModel: appViewModel, tonKit: tonKit)
+            EventView(appViewModel: appViewModel)
                 .tabItem {
                     Label("Transactions", systemImage: "list.bullet.circle")
                 }
 
-            if !tonKit.watchOnly {
-                SendView(tonKit: tonKit)
+            if let tonKit = appViewModel.tonKit, !tonKit.watchOnly {
+                SendView()
                     .tabItem {
                         Label("Send", systemImage: "paperplane.circle")
                     }
 
-                ReceiveView(tonKit: tonKit)
+                ReceiveView()
                     .tabItem {
                         Label("Receive", systemImage: "tray.circle")
                     }

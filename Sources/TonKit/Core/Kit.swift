@@ -10,23 +10,27 @@ import TonSwift
 
 public class Kit {
     private let address: Address
-    private let network: Network
 
+    private let apiListener: IApiListener
     private let accountManager: AccountManager
     private let jettonManager: JettonManager
     private let eventManager: EventManager
     private let transactionSender: TransactionSender?
-
     private let logger: Logger?
+    private var cancellables = Set<AnyCancellable>()
 
-    init(address: Address, network: Network, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, transactionSender: TransactionSender?, logger: Logger?) {
+    init(address: Address, apiListener: IApiListener, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, transactionSender: TransactionSender?, logger: Logger?) {
         self.address = address
-        self.network = network
+        self.apiListener = apiListener
         self.accountManager = accountManager
         self.jettonManager = jettonManager
         self.eventManager = eventManager
         self.transactionSender = transactionSender
         self.logger = logger
+
+        apiListener.transactionPublisher
+            .sink { [weak self] in self?.refresh() }
+            .store(in: &cancellables)
     }
 }
 
@@ -126,11 +130,13 @@ public extension Kit {
     }
 
     func start() {
-        // syncer.start()
+        refresh()
+
+        apiListener.start(address: address)
     }
 
     func stop() {
-        // syncer.stop()
+        apiListener.stop()
     }
 
     func refresh() {
@@ -189,6 +195,8 @@ public extension Kit {
             address = _address
         }
 
+        let apiListener: IApiListener = TonApiListener(network: network, logger: logger)
+
         let accountStorage = try AccountStorage(dbPool: dbPool)
         let accountManager = AccountManager(address: address, api: api, storage: accountStorage, logger: logger)
 
@@ -200,7 +208,7 @@ public extension Kit {
 
         let kit = Kit(
             address: address,
-            network: network,
+            apiListener: apiListener,
             accountManager: accountManager,
             jettonManager: jettontManager,
             eventManager: eventManager,
@@ -246,8 +254,6 @@ public extension Kit {
 
     enum SyncError: Error {
         case notStarted
-        // case noNetworkConnection
-        // case disconnected
     }
 
     enum WalletError: Error {

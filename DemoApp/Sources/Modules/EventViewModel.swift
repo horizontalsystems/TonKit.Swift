@@ -4,7 +4,6 @@ import TonKit
 import TonSwift
 
 class EventViewModel: ObservableObject {
-    private let tonKit: Kit
     private var cancellables = Set<AnyCancellable>()
 
     @Published var syncState: SyncState
@@ -28,10 +27,8 @@ class EventViewModel: ObservableObject {
         }
     }
 
-    init(tonKit: Kit) {
-        self.tonKit = tonKit
-
-        syncState = tonKit.syncState
+    init() {
+        syncState = Singleton.tonKit?.syncState ?? .notSynced(error: AppError.noTonKit)
 
         syncTagQuery()
     }
@@ -49,20 +46,23 @@ class EventViewModel: ObservableObject {
     }
 
     private func sync(tagQuery: TagQuery) {
-        events = tonKit.events(tagQuery: tagQuery)
+        events = Singleton.tonKit?.events(tagQuery: tagQuery) ?? []
     }
 
     private func subscribe(tagQuery: TagQuery) {
-        tonKit.eventPublisher(tagQuery: tagQuery)
+        Singleton.tonKit?.eventPublisher(tagQuery: tagQuery)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] events in
-                print("Receive: \(events.count)")
                 self?.sync(tagQuery: tagQuery)
             }
             .store(in: &cancellables)
     }
 
     var eventTokens: [EventToken] {
+        guard let tonKit = Singleton.tonKit else {
+            return []
+        }
+
         let jettons: [EventToken] = tonKit.jettonBalanceMap.values.map { jettonBalance in
             .jetton(jetton: jettonBalance.jetton)
         }

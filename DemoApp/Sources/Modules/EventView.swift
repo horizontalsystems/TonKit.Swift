@@ -2,11 +2,10 @@ import SwiftUI
 import TonKit
 
 struct EventView: View {
-    @StateObject private var viewModel: EventViewModel
+    @StateObject private var viewModel = EventViewModel()
     @ObservedObject private var appViewModel: AppViewModel
 
-    init(appViewModel: AppViewModel, tonKit: Kit) {
-        _viewModel = StateObject(wrappedValue: EventViewModel(tonKit: tonKit))
+    init(appViewModel: AppViewModel) {
         self.appViewModel = appViewModel
     }
 

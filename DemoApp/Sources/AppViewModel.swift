@@ -5,6 +5,14 @@ import TonKit
 import TonSwift
 import TweetNacl
 
+struct Singleton {
+    static var tonKit: Kit?
+}
+
+enum AppError: Error {
+    case noTonKit
+}
+
 class AppViewModel: ObservableObject {
     private let keyWords = "mnemonic_words"
     private let keyAddress = "address"
@@ -30,8 +38,9 @@ class AppViewModel: ObservableObject {
             minLogLevel: configuration.minLogLevel
         )
 
-        tonKit.refresh()
+        tonKit.start()
 
+        Singleton.tonKit = tonKit
         self.tonKit = tonKit
     }
 
@@ -97,6 +106,7 @@ extension AppViewModel {
         clearStorage()
 
         tonKit = nil
+        Singleton.tonKit = nil
     }
 }
 

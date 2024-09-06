@@ -3,11 +3,7 @@ import TonKit
 import UIKit
 
 struct ReceiveView: View {
-    @StateObject private var viewModel: ReceiveViewModel
-
-    init(tonKit: Kit) {
-        _viewModel = StateObject(wrappedValue: ReceiveViewModel(tonKit: tonKit))
-    }
+    @StateObject private var viewModel = ReceiveViewModel()
 
     var body: some View {
         NavigationStack {

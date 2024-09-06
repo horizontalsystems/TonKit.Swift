@@ -3,11 +3,7 @@ import TonKit
 import UIKit
 
 struct SendView: View {
-    @StateObject private var viewModel: SendViewModel
-
-    init(tonKit: Kit) {
-        _viewModel = StateObject(wrappedValue: SendViewModel(tonKit: tonKit))
-    }
+    @StateObject private var viewModel = SendViewModel()
 
     var body: some View {
         NavigationStack {

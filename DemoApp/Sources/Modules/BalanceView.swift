@@ -2,11 +2,10 @@ import SwiftUI
 import TonKit
 
 struct BalanceView: View {
-    @StateObject private var viewModel: BalanceViewModel
+    @StateObject private var viewModel = BalanceViewModel()
     @ObservedObject private var appViewModel: AppViewModel
 
-    init(appViewModel: AppViewModel, tonKit: Kit) {
-        _viewModel = StateObject(wrappedValue: BalanceViewModel(tonKit: tonKit))
+    init(appViewModel: AppViewModel) {
         self.appViewModel = appViewModel
     }
 
