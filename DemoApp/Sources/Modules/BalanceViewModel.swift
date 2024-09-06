@@ -39,6 +39,6 @@ class BalanceViewModel: ObservableObject {
     }
 
     func refresh() {
-        Singleton.tonKit?.refresh()
+        Singleton.tonKit?.sync()
     }
 }

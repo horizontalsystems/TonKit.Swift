@@ -38,7 +38,8 @@ class AppViewModel: ObservableObject {
             minLogLevel: configuration.minLogLevel
         )
 
-        tonKit.start()
+        tonKit.sync()
+        tonKit.startListener()
 
         Singleton.tonKit = tonKit
         self.tonKit = tonKit

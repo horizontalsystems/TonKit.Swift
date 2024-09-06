@@ -29,7 +29,7 @@ public class Kit {
         self.logger = logger
 
         apiListener.transactionPublisher
-            .sink { [weak self] in self?.refresh() }
+            .sink { [weak self] in self?.sync() }
             .store(in: &cancellables)
     }
 }
@@ -129,17 +129,15 @@ public extension Kit {
         return try await transactionSender.send(jettonWallet: jettonWallet, recipient: recipient, amount: amount, comment: comment)
     }
 
-    func start() {
-        refresh()
-
+    func startListener() {
         apiListener.start(address: address)
     }
 
-    func stop() {
+    func stopListener() {
         apiListener.stop()
     }
 
-    func refresh() {
+    func sync() {
         accountManager.sync()
         jettonManager.sync()
         eventManager.sync()
