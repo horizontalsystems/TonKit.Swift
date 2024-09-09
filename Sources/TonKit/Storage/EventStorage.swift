@@ -114,6 +114,14 @@ extension EventStorage {
         }
     }
 
+    func events(ids: [String]) throws -> [Event] {
+        try dbPool.read { db in
+            try Event
+                .filter(ids.contains(Event.Columns.id))
+                .fetchAll(db)
+        }
+    }
+
     func latestEvent() throws -> Event? {
         try dbPool.read { db in
             try Event

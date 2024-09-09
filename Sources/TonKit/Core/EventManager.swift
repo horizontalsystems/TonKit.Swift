@@ -23,7 +23,34 @@ class EventManager {
         self.logger = logger
     }
 
+    private func handleLatest(events: [Event]) {
+        let inProgressEvents = events.filter { $0.inProgress }
+        let completedEvents = events.filter { !$0.inProgress }
+
+        var eventsToHandle = [Event]()
+
+        if !completedEvents.isEmpty {
+            let existingEvents = (try? storage.events(ids: completedEvents.map { $0.id })) ?? []
+
+            for completedEvent in completedEvents {
+                if let existingEvent = existingEvents.first(where: { $0.id == completedEvent.id }) {
+                    if existingEvent.inProgress {
+                        eventsToHandle.append(completedEvent)
+                    }
+                } else {
+                    eventsToHandle.append(completedEvent)
+                }
+            }
+        }
+
+        handle(events: inProgressEvents + eventsToHandle)
+    }
+
     private func handle(events: [Event]) {
+        guard !events.isEmpty else {
+            return
+        }
+
         try? storage.save(events: events)
 
         let eventsWithTags = events.map { event in
@@ -105,7 +132,7 @@ extension EventManager {
                         let events = try await api.getEvents(address: address, beforeLt: beforeLt, startTimestamp: startTimestamp, limit: Self.limit)
                         self?.logger?.log(level: .debug, message: "Got latest events: \(events.count), beforeLt: \(beforeLt ?? -1), startTimestamp: \(startTimestamp)")
 
-                        self?.handle(events: events)
+                        self?.handleLatest(events: events)
 
                         if events.count < Self.limit {
                             break
