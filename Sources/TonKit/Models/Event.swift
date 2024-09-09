@@ -53,6 +53,11 @@ extension Event: FetchableRecord, PersistableRecord {
     }
 }
 
+public struct EventInfo {
+    public let events: [Event]
+    public let initial: Bool
+}
+
 struct EventSyncState: Codable {
     let id: String
     let allSynced: Bool

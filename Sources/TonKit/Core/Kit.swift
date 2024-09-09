@@ -89,7 +89,7 @@ public extension Kit {
         eventManager.events(tagQuery: tagQuery, beforeLt: beforeLt, limit: limit)
     }
 
-    func eventPublisher(tagQuery: TagQuery) -> AnyPublisher<[Event], Never> {
+    func eventPublisher(tagQuery: TagQuery) -> AnyPublisher<EventInfo, Never> {
         eventManager.eventPublisher(tagQuery: tagQuery)
     }
 

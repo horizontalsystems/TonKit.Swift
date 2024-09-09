@@ -14,7 +14,7 @@ class EventManager {
 
     @DistinctPublished private(set) var syncState: SyncState = .notSynced(error: Kit.SyncError.notStarted)
 
-    private let eventWithTagsSubject = PassthroughSubject<[EventWithTags], Never>()
+    private let eventSubject = PassthroughSubject<EventInfoWithTags, Never>()
 
     init(address: Address, api: IApi, storage: EventStorage, logger: Logger?) {
         self.address = address
@@ -43,10 +43,10 @@ class EventManager {
             }
         }
 
-        handle(events: inProgressEvents + eventsToHandle)
+        handle(events: inProgressEvents + eventsToHandle, initial: false)
     }
 
-    private func handle(events: [Event]) {
+    private func handle(events: [Event], initial: Bool) {
         guard !events.isEmpty else {
             return
         }
@@ -60,7 +60,7 @@ class EventManager {
         let tags = eventsWithTags.map { $0.tags }.flatMap { $0 }
         try? storage.resave(tags: tags, eventIds: events.map { $0.id })
 
-        eventWithTagsSubject.send(eventsWithTags)
+        eventSubject.send(EventInfoWithTags(events: eventsWithTags, initial: initial))
     }
 }
 
@@ -73,28 +73,34 @@ extension EventManager {
         }
     }
 
-    func eventPublisher(tagQuery: TagQuery) -> AnyPublisher<[Event], Never> {
+    func eventPublisher(tagQuery: TagQuery) -> AnyPublisher<EventInfo, Never> {
         if tagQuery.isEmpty {
-            return eventWithTagsSubject
-                .map { eventsWithTags in
-                    eventsWithTags.map { $0.event }
+            return eventSubject
+                .map { info in
+                    EventInfo(
+                        events: info.events.map { $0.event },
+                        initial: info.initial
+                    )
                 }
                 .eraseToAnyPublisher()
         } else {
-            return eventWithTagsSubject
-                .map { eventsWithTags in
-                    eventsWithTags.compactMap { eventWithTags -> Event? in
-                        for tag in eventWithTags.tags {
-                            if tag.conforms(tagQuery: tagQuery) {
-                                return eventWithTags.event
+            return eventSubject
+                .map { info in
+                    EventInfo(
+                        events: info.events.compactMap { eventWithTags -> Event? in
+                            for tag in eventWithTags.tags {
+                                if tag.conforms(tagQuery: tagQuery) {
+                                    return eventWithTags.event
+                                }
                             }
-                        }
 
-                        return nil
-                    }
+                            return nil
+                        },
+                        initial: info.initial
+                    )
                 }
-                .filter { events in
-                    !events.isEmpty
+                .filter { info in
+                    !info.events.isEmpty
                 }
                 .eraseToAnyPublisher()
         }
@@ -155,7 +161,7 @@ extension EventManager {
                         let events = try await api.getEvents(address: address, beforeLt: beforeLt, startTimestamp: nil, limit: Self.limit)
                         self?.logger?.log(level: .debug, message: "Got history events: \(events.count), beforeLt: \(beforeLt ?? -1)")
 
-                        self?.handle(events: events)
+                        self?.handle(events: events, initial: true)
 
                         if events.count < Self.limit {
                             break
@@ -184,5 +190,10 @@ extension EventManager {
     private struct EventWithTags {
         let event: Event
         let tags: [Tag]
+    }
+
+    private struct EventInfoWithTags {
+        let events: [EventWithTags]
+        let initial: Bool
     }
 }

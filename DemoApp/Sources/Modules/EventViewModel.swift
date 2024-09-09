@@ -52,7 +52,7 @@ class EventViewModel: ObservableObject {
     private func subscribe(tagQuery: TagQuery) {
         Singleton.tonKit?.eventPublisher(tagQuery: tagQuery)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] events in
+            .sink { [weak self] _ in
                 self?.sync(tagQuery: tagQuery)
             }
             .store(in: &cancellables)
