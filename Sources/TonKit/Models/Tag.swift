@@ -56,6 +56,7 @@ public extension Tag {
     enum `Type`: String, Codable {
         case incoming
         case outgoing
+        case swap
         case unsupported
     }
 }

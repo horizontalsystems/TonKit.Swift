@@ -31,6 +31,20 @@ public struct Event: Codable {
                 if let recipient = action.recipient, recipient.address == address {
                     tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: action.jetton.address, addresses: action.sender.map { [$0.address] } ?? []))
                 }
+            case let .jettonBurn(action):
+                tags.append(Tag(eventId: id, type: .outgoing, platform: .jetton, jettonAddress: action.jetton.address, addresses: []))
+            case let .jettonMint(action):
+                tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: action.jetton.address, addresses: []))
+            case let .jettonSwap(action):
+                if let jetton = action.jettonMasterIn {
+                    tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: jetton.address, addresses: []))
+                    tags.append(Tag(eventId: id, type: .swap, platform: .jetton, jettonAddress: jetton.address, addresses: []))
+                }
+
+                if let jetton = action.jettonMasterOut {
+                    tags.append(Tag(eventId: id, type: .outgoing, platform: .jetton, jettonAddress: jetton.address, addresses: []))
+                    tags.append(Tag(eventId: id, type: .swap, platform: .jetton, jettonAddress: jetton.address, addresses: []))
+                }
             case let .smartContract(action):
                 tags.append(Tag(eventId: id, type: .outgoing, platform: .native, addresses: [action.contract.address]))
             default: ()
