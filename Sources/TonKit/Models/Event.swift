@@ -32,18 +32,24 @@ public struct Event: Codable {
                     tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: action.jetton.address, addresses: action.sender.map { [$0.address] } ?? []))
                 }
             case let .jettonBurn(action):
-                tags.append(Tag(eventId: id, type: .outgoing, platform: .jetton, jettonAddress: action.jetton.address, addresses: []))
+                tags.append(Tag(eventId: id, type: .outgoing, platform: .jetton, jettonAddress: action.jetton.address))
             case let .jettonMint(action):
-                tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: action.jetton.address, addresses: []))
+                tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: action.jetton.address))
             case let .jettonSwap(action):
                 if let jetton = action.jettonMasterIn {
-                    tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: jetton.address, addresses: []))
-                    tags.append(Tag(eventId: id, type: .swap, platform: .jetton, jettonAddress: jetton.address, addresses: []))
+                    tags.append(Tag(eventId: id, type: .incoming, platform: .jetton, jettonAddress: jetton.address))
+                    tags.append(Tag(eventId: id, type: .swap, platform: .jetton, jettonAddress: jetton.address))
+                } else {
+                    tags.append(Tag(eventId: id, type: .incoming, platform: .native))
+                    tags.append(Tag(eventId: id, type: .swap, platform: .native))
                 }
 
                 if let jetton = action.jettonMasterOut {
-                    tags.append(Tag(eventId: id, type: .outgoing, platform: .jetton, jettonAddress: jetton.address, addresses: []))
-                    tags.append(Tag(eventId: id, type: .swap, platform: .jetton, jettonAddress: jetton.address, addresses: []))
+                    tags.append(Tag(eventId: id, type: .outgoing, platform: .jetton, jettonAddress: jetton.address))
+                    tags.append(Tag(eventId: id, type: .swap, platform: .jetton, jettonAddress: jetton.address))
+                } else {
+                    tags.append(Tag(eventId: id, type: .outgoing, platform: .native))
+                    tags.append(Tag(eventId: id, type: .swap, platform: .native))
                 }
             case let .smartContract(action):
                 tags.append(Tag(eventId: id, type: .outgoing, platform: .native, addresses: [action.contract.address]))
