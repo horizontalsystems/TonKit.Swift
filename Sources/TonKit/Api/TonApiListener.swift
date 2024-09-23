@@ -11,7 +11,7 @@ class TonApiListener {
     private let logger: Logger?
 
     private var address: Address?
-    private let transactionSubject = PassthroughSubject<Void, Never>()
+    private let transactionSubject = PassthroughSubject<String, Never>()
 
     private var state: State = .disconnected {
         didSet {
@@ -91,7 +91,7 @@ class TonApiListener {
         do {
             let eventTransaction = try jsonDecoder.decode(EventSource.Transaction.self, from: eventData)
             logger?.debug("-> transaction: \(eventTransaction.txHash)")
-            transactionSubject.send()
+            transactionSubject.send(eventTransaction.txHash)
         } catch {}
     }
 }
@@ -108,7 +108,7 @@ extension TonApiListener: IApiListener {
         task = nil
     }
 
-    var transactionPublisher: AnyPublisher<Void, Never> {
+    var transactionPublisher: AnyPublisher<String, Never> {
         transactionSubject.eraseToAnyPublisher()
     }
 }

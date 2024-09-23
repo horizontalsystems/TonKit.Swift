@@ -4,5 +4,5 @@ import TonSwift
 protocol IApiListener {
     func start(address: Address)
     func stop()
-    var transactionPublisher: AnyPublisher<Void, Never> { get }
+    var transactionPublisher: AnyPublisher<String, Never> { get }
 }

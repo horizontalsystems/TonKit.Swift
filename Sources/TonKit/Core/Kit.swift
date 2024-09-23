@@ -3,6 +3,7 @@ import Combine
 import Foundation
 import GRDB
 import HsCryptoKit
+import HsExtensions
 import HsToolKit
 import TonAPI
 import TonStreamingAPI
@@ -18,6 +19,7 @@ public class Kit {
     private let transactionSender: TransactionSender?
     private let logger: Logger?
     private var cancellables = Set<AnyCancellable>()
+    private var tasks = Set<AnyTask>()
 
     init(address: Address, apiListener: IApiListener, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, transactionSender: TransactionSender?, logger: Logger?) {
         self.address = address
@@ -29,8 +31,25 @@ public class Kit {
         self.logger = logger
 
         apiListener.transactionPublisher
-            .sink { [weak self] in self?.sync() }
+            .sink { [weak self] in self?.handleNewEvent(id: $0) }
             .store(in: &cancellables)
+    }
+
+    private func handleNewEvent(id: String) {
+        Task { [weak self] in
+            for attempt in 1 ... 3 {
+                try await Task.sleep(nanoseconds: 5_000_000_000)
+
+                if let existingEvent = self?.eventManager.event(id: id), !existingEvent.inProgress {
+                    break
+                }
+
+                self?.logger?.debug("Event sync attempt \(attempt): \(id)")
+
+                self?.sync()
+            }
+        }
+        .store(in: &tasks)
     }
 }
 

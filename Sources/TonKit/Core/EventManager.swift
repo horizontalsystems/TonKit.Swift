@@ -65,6 +65,14 @@ class EventManager {
 }
 
 extension EventManager {
+    func event(id: String) -> Event? {
+        do {
+            return try storage.event(id: id)
+        } catch {
+            return nil
+        }
+    }
+
     func events(tagQuery: TagQuery, beforeLt: Int64?, limit: Int?) -> [Event] {
         do {
             return try storage.events(tagQuery: tagQuery, beforeLt: beforeLt, limit: limit ?? 100)
