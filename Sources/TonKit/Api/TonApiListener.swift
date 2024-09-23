@@ -7,7 +7,7 @@ import TonStreamingAPI
 import TonSwift
 
 class TonApiListener {
-    private let client: TonStreamingAPI.Client
+    private let streamingAPI: StreamingAPI
     private let logger: Logger?
 
     private var address: Address?
@@ -30,8 +30,7 @@ class TonApiListener {
         case .testNet: serverUrl = "https://testnet.tonapi.io"
         }
 
-        let transport = StreamURLSessionTransport(urlSessionConfiguration: .default)
-        client = TonStreamingAPI.Client(serverURL: URL(string: serverUrl)!, transport: transport, middlewares: [])
+        streamingAPI = StreamingAPI(host: URL(string: serverUrl))
 
         self.logger = logger
     }
@@ -54,23 +53,16 @@ class TonApiListener {
         task?.cancel()
         task = nil
 
-        task = Task { [weak self, client, address] in
+        task = Task { [weak self, streamingAPI, address] in
             do {
                 self?.state = .connecting
 
-                let stream = try await EventSource.eventSource {
-                    let response = try await client.getTransactions(
-                        query: .init(accounts: [address.toRaw()])
-                    )
-                    return try response.ok.body.text_event_hyphen_stream
-                }
-
-                guard !Task.isCancelled else { return }
+                let stream = try await streamingAPI.accountsTransactionsStream(accounts: [address.toRaw()])
 
                 self?.state = .connected
 
                 for try await events in stream {
-                    self?.handleReceivedEvents(events)
+                    self?.handleReceived(events: events)
                 }
 
                 self?.state = .disconnected
@@ -89,7 +81,7 @@ class TonApiListener {
         }
     }
 
-    private func handleReceivedEvents(_ events: [EventSource.Event]) {
+    private func handleReceived(events: [EventSource.Event]) {
         logger?.debug("-> receive events: \(events.count): \(events.compactMap { $0.event }.joined(separator: ", "))")
 
         guard let messageEvent = events.last(where: { $0.event == "message" }), let eventData = messageEvent.data?.data(using: .utf8) else {
@@ -126,5 +118,64 @@ extension TonApiListener {
         case connecting
         case connected
         case disconnected
+    }
+}
+
+extension TonApiListener {
+    struct StreamingAPI {
+        enum Error: Swift.Error {
+            case incorrectUrl
+        }
+
+        private let transport = StreamURLSessionTransport(urlSessionConfiguration: .default)
+        private let host: URL?
+
+        init(host: URL?) {
+            self.host = host
+        }
+
+        func accountsTransactionsStream(accounts: [String]) async throws -> AsyncThrowingStream<[EventSource.Event], Swift.Error> {
+            let request = AccountsTransactionsRequest(accounts: accounts)
+            let urlRequest = try await urlRequest(request: request)
+
+            let stream = try await EventSource.eventSource {
+                let (bytes, _) = try await self.transport.send(request: urlRequest)
+                return bytes
+            }
+            return stream
+        }
+
+        private func urlRequest(request: Request) async throws -> URLRequest {
+            guard let host else {
+                throw Error.incorrectUrl
+            }
+
+            var urlComponents = URLComponents(url: host, resolvingAgainstBaseURL: true)
+            urlComponents?.path = request.path
+            urlComponents?.queryItems = request.queryItems
+
+            guard let url = urlComponents?.url else {
+                throw Error.incorrectUrl
+            }
+
+            return URLRequest(url: url)
+        }
+    }
+
+    struct AccountsTransactionsRequest: Request {
+        private let accounts: [String]
+
+        init(accounts: [String]) {
+            self.accounts = accounts
+        }
+
+        var path: String {
+            "/v2/sse/accounts/transactions"
+        }
+
+        var queryItems: [URLQueryItem] {
+            let value = accounts.joined(separator: ",")
+            return [URLQueryItem(name: "accounts", value: value)]
+        }
     }
 }
