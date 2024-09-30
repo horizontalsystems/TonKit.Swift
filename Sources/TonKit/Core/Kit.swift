@@ -16,18 +16,16 @@ public class Kit {
     private let accountManager: AccountManager
     private let jettonManager: JettonManager
     private let eventManager: EventManager
-    private let transactionSender: TransactionSender?
     private let logger: Logger?
     private var cancellables = Set<AnyCancellable>()
     private var tasks = Set<AnyTask>()
 
-    init(address: Address, apiListener: IApiListener, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, transactionSender: TransactionSender?, logger: Logger?) {
+    init(address: Address, apiListener: IApiListener, accountManager: AccountManager, jettonManager: JettonManager, eventManager: EventManager, logger: Logger?) {
         self.address = address
         self.apiListener = apiListener
         self.accountManager = accountManager
         self.jettonManager = jettonManager
         self.eventManager = eventManager
-        self.transactionSender = transactionSender
         self.logger = logger
 
         apiListener.transactionPublisher
@@ -56,10 +54,6 @@ public class Kit {
 // Public API Extension
 
 public extension Kit {
-    var watchOnly: Bool {
-        transactionSender == nil
-    }
-
     var syncState: SyncState {
         accountManager.syncState
     }
@@ -116,36 +110,62 @@ public extension Kit {
         eventManager.tagTokens()
     }
 
-    func estimateFee(recipient: FriendlyAddress, amount: SendAmount, comment: String?) async throws -> BigUInt {
-        guard let transactionSender else {
-            throw WalletError.watchOnly
+    func transferData(recipient: FriendlyAddress, amount: SendAmount, comment: String?) throws -> TransferData {
+        let value: BigUInt
+        let isMax: Bool
+
+        switch amount {
+        case let .amount(_value):
+            value = _value
+            isMax = false
+        case .max:
+            value = 0
+            isMax = true
         }
 
-        return try await transactionSender.estimateFee(recipient: recipient, amount: amount, comment: comment)
+        let internalMessage: MessageRelaxed
+
+        if let comment = comment {
+            internalMessage = try MessageRelaxed.internal(
+                to: recipient.address,
+                value: value.magnitude,
+                bounce: recipient.isBounceable,
+                textPayload: comment
+            )
+        } else {
+            internalMessage = MessageRelaxed.internal(
+                to: recipient.address,
+                value: value.magnitude,
+                bounce: recipient.isBounceable
+            )
+        }
+
+        return TransferData(
+            sender: address,
+            sendMode: isMax ? .sendMaxTon() : .walletDefault(),
+            internalMessages: [internalMessage]
+        )
     }
 
-    func estimateFee(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws -> BigUInt {
-        guard let transactionSender else {
-            throw WalletError.watchOnly
+    func transferData(jettonAddress: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) throws -> TransferData {
+        guard let jettonBalance = jettonBalanceMap[jettonAddress] else {
+            throw WalletError.noJettonWallet
         }
 
-        return try await transactionSender.estimateFee(jettonWallet: jettonWallet, recipient: recipient, amount: amount, comment: comment)
-    }
+        let internalMessage = try JettonTransferMessage.internalMessage(
+            jettonAddress: jettonBalance.walletAddress,
+            amount: BigInt(amount),
+            bounce: recipient.isBounceable,
+            to: recipient.address,
+            from: address,
+            comment: comment
+        )
 
-    func send(recipient: FriendlyAddress, amount: SendAmount, comment: String?) async throws {
-        guard let transactionSender else {
-            throw WalletError.watchOnly
-        }
-
-        return try await transactionSender.send(recipient: recipient, amount: amount, comment: comment)
-    }
-
-    func send(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws {
-        guard let transactionSender else {
-            throw WalletError.watchOnly
-        }
-
-        return try await transactionSender.send(jettonWallet: jettonWallet, recipient: recipient, amount: amount, comment: comment)
+        return TransferData(
+            sender: address,
+            sendMode: .walletDefault(),
+            internalMessages: [internalMessage]
+        )
     }
 
     func startListener() {
@@ -179,7 +199,7 @@ public extension Kit {
         }
     }
 
-    static func instance(type: WalletType, walletVersion: WalletVersion = .v4, network: Network = .mainNet, walletId: String, minLogLevel: Logger.Level = .error) throws -> Kit {
+    static func instance(address: Address, network: Network = .mainNet, walletId: String, minLogLevel: Logger.Level = .error) throws -> Kit {
         let logger = Logger(minLogLevel: minLogLevel)
         let uniqueId = "\(walletId)-\(network.rawValue)"
 
@@ -189,29 +209,6 @@ public extension Kit {
         let dbPool = try DatabasePool(path: databaseURL.path)
 
         let api = api(network: network)
-
-        let address: Address
-        var transactionSender: TransactionSender?
-
-        switch type {
-        case let .full(keyPair):
-            let walletContract: WalletContract
-
-            switch walletVersion {
-            case .v3:
-                fatalError() // todo
-            case .v4:
-                walletContract = WalletV4R2(publicKey: keyPair.publicKey.data)
-            case .v5:
-                fatalError() // todo
-            }
-
-            address = try walletContract.address()
-            transactionSender = TransactionSender(api: api, contract: walletContract, sender: address, secretKey: keyPair.privateKey.data)
-        case let .watch(_address):
-            address = _address
-        }
-
         let apiListener: IApiListener = TonApiListener(network: network, logger: logger)
 
         let accountStorage = try AccountStorage(dbPool: dbPool)
@@ -229,7 +226,6 @@ public extension Kit {
             accountManager: accountManager,
             jettonManager: jettontManager,
             eventManager: eventManager,
-            transactionSender: transactionSender,
             logger: logger
         )
 
@@ -238,6 +234,46 @@ public extension Kit {
 
     static func jetton(network: Network = .mainNet, address: Address) async throws -> Jetton {
         try await api(network: network).getJettonInfo(address: address)
+    }
+
+    static func transferData(sender: Address, payloads: [Payload]) throws -> TransferData {
+        let internalMessages = try payloads.map { payload in
+            var stateInit: TonSwift.StateInit?
+
+            if let stateInitString = payload.stateInit {
+                stateInit = try StateInit.loadFrom(slice: Cell.fromBase64(src: stateInitString).toSlice())
+            }
+
+            var body: Cell = .empty
+
+            if let messagePayload = payload.payload {
+                body = try Cell.fromBase64(src: messagePayload)
+            }
+
+            return MessageRelaxed.internal(
+                to: payload.recipientAddress,
+                value: payload.value.magnitude,
+                bounce: false,
+                stateInit: stateInit,
+                body: body
+            )
+        }
+
+        return TransferData(
+            sender: sender,
+            sendMode: .walletDefault(),
+            internalMessages: internalMessages
+        )
+    }
+
+    static func emulate(transferData: TransferData, contract: WalletContract, network: Network) async throws -> EmulateResult {
+        let transactionSender = TransactionSender(api: api(network: network), contract: contract)
+        return try await transactionSender.emulate(trasferData: transferData)
+    }
+
+    static func send(transferData: TransferData, contract: WalletContract, secretKey: Data, network: Network) async throws {
+        let transactionSender = TransactionSender(api: api(network: network), contract: contract)
+        try await transactionSender.send(trasferData: transferData, secretKey: secretKey)
     }
 
     private static func api(network: Network) -> IApi {
@@ -258,27 +294,30 @@ public extension Kit {
 }
 
 public extension Kit {
-    enum WalletType {
-        case full(KeyPair)
-        case watch(Address)
-    }
-
-    enum WalletVersion {
-        case v3
-        case v4
-        case v5
-    }
-
     enum SyncError: Error {
         case notStarted
     }
 
     enum WalletError: Error {
-        case watchOnly
+        case noJettonWallet
     }
 
     enum SendAmount {
         case amount(value: BigUInt)
         case max
+    }
+
+    struct Payload {
+        let value: BigInt
+        let recipientAddress: Address
+        let stateInit: String?
+        let payload: String?
+
+        public init(value: BigInt, recipientAddress: Address, stateInit: String?, payload: String?) {
+            self.value = value
+            self.recipientAddress = recipientAddress
+            self.stateInit = stateInit
+            self.payload = payload
+        }
     }
 }

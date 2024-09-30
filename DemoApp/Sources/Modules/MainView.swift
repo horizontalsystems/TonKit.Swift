@@ -20,7 +20,7 @@ struct MainView: View {
                     Label("Transactions", systemImage: "list.bullet.circle")
                 }
 
-            if let tonKit = appViewModel.tonKit, !tonKit.watchOnly {
+            if Singleton.keyPair != nil {
                 SendView()
                     .tabItem {
                         Label("Send", systemImage: "paperplane.circle")

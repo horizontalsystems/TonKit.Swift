@@ -34,20 +34,7 @@ class TonApi: IApi {
 
     func getEvents(address: Address, beforeLt: Int64?, startTimestamp: Int64?, limit: Int) async throws -> [Event] {
         let events = try await AccountsAPI.getAccountEvents(accountId: address.toRaw(), limit: limit, beforeLt: beforeLt, startDate: startTimestamp)
-
-        return try events.events.map { event in
-            try Event(
-                id: event.eventId,
-                lt: event.lt,
-                timestamp: event.timestamp,
-                isScam: event.isScam,
-                inProgress: event.inProgress,
-                extra: event.extra,
-                actions: event.actions.map { action in
-                    try Action(type: .init(action: action), status: .init(status: action.status))
-                }
-            )
-        }
+        return try events.events.map { try Event(event: $0) }
     }
 
     func getAccountSeqno(address: Address) async throws -> Int {
@@ -63,13 +50,27 @@ class TonApi: IApi {
         try await LiteServerAPI.getRawTime().time
     }
 
-    func estimateFee(boc: String) async throws -> BigUInt {
+    func emulate(boc: String) async throws -> EmulateResult {
         let result = try await EmulationAPI.emulateMessageToWallet(emulateMessageToWalletRequest: .init(boc: boc))
-        return BigUInt(result.trace.transaction.totalFees)
+        return try EmulateResult(totalFee: BigUInt(result.trace.transaction.totalFees), event: Event(event: result.event))
     }
 
     func send(boc: String) async throws {
         try await BlockchainAPI.sendBlockchainMessage(sendBlockchainMessageRequest: .init(boc: boc))
+    }
+}
+
+extension Event {
+    init(event: AccountEvent) throws {
+        id = event.eventId
+        lt = event.lt
+        timestamp = event.timestamp
+        isScam = event.isScam
+        inProgress = event.inProgress
+        extra = event.extra
+        actions = try event.actions.map { action in
+            try Action(type: .init(action: action), status: .init(status: action.status))
+        }
     }
 }
 

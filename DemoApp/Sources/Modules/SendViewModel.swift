@@ -9,19 +9,19 @@ class SendViewModel: ObservableObject {
 
     @Published var address: String = Configuration.shared.defaultSendAddress {
         didSet {
-            estimateFee()
+            emulate()
         }
     }
 
     @Published var amount: String = "0.025" {
         didSet {
-            estimateFee()
+            emulate()
         }
     }
 
     @Published var comment: String = "" {
         didSet {
-            estimateFee()
+            emulate()
         }
     }
 
@@ -31,10 +31,10 @@ class SendViewModel: ObservableObject {
     @Published var sentAlertText: String?
 
     init() {
-        estimateFee()
+        emulate()
     }
 
-    private func estimateFee() {
+    private func emulate() {
         guard let address = try? FriendlyAddress(string: address) else {
             estimatedFee = nil
             return
@@ -53,18 +53,31 @@ class SendViewModel: ObservableObject {
         let trimmedComment = comment.trimmingCharacters(in: .whitespaces)
         let comment = trimmedComment.isEmpty ? nil : trimmedComment
 
-        Task { [weak self, token] in
-            let fee: BigUInt
+        guard let tonKit = Singleton.tonKit, let keyPair = Singleton.keyPair else {
+            estimatedFee = nil
+            return
+        }
 
+        let transferData: TransferData
+
+        do {
             switch token {
             case .native:
-                fee = try await Singleton.tonKit?.estimateFee(recipient: address, amount: .amount(value: amount), comment: comment) ?? 0
+                transferData = try tonKit.transferData(recipient: address, amount: .amount(value: amount), comment: comment)
             case let .jetton(jettonBalance):
-                fee = try await Singleton.tonKit?.estimateFee(jettonWallet: jettonBalance.walletAddress, recipient: address, amount: amount, comment: comment) ?? 0
+                transferData = try tonKit.transferData(jettonAddress: jettonBalance.jettonAddress, recipient: address, amount: amount, comment: comment)
             }
+        } catch {
+            estimatedFee = nil
+            return
+        }
+
+        Task { [weak self] in
+            let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
+            let result = try await TonKit.Kit.emulate(transferData: transferData, contract: contract, network: Configuration.shared.network)
 
             await MainActor.run { [weak self] in
-                self?.estimatedFee = fee.tonDecimalValue.map { "\($0) TON" }
+                self?.estimatedFee = result.totalFee.tonDecimalValue.map { "\($0) TON" }
             }
         }
     }
@@ -84,6 +97,10 @@ class SendViewModel: ObservableObject {
     func send() {
         Task { [weak self, token, address, amount, comment] in
             do {
+                guard let tonKit = Singleton.tonKit, let keyPair = Singleton.keyPair else {
+                    throw SendError.noKeyPair
+                }
+
                 let address = try FriendlyAddress(string: address)
 
                 guard let decimalAmount = Decimal(string: amount) else {
@@ -97,16 +114,20 @@ class SendViewModel: ObservableObject {
                 let trimmedComment = comment.trimmingCharacters(in: .whitespaces)
                 let comment = trimmedComment.isEmpty ? nil : trimmedComment
 
+                let transferData: TransferData
                 let successMessage: String
 
                 switch token {
                 case .native:
-                    try await Singleton.tonKit?.send(recipient: address, amount: .amount(value: amount), comment: comment)
+                    transferData = try tonKit.transferData(recipient: address, amount: .amount(value: amount), comment: comment)
                     successMessage = "You have successfully sent \(decimalAmount) TON to \(address.address.toFriendlyWallet)"
                 case let .jetton(jettonBalance):
-                    try await Singleton.tonKit?.send(jettonWallet: jettonBalance.walletAddress, recipient: address, amount: amount, comment: comment)
+                    transferData = try tonKit.transferData(jettonAddress: jettonBalance.jettonAddress, recipient: address, amount: amount, comment: comment)
                     successMessage = "You have successfully sent \(decimalAmount) \(jettonBalance.jetton.symbol) to \(address.address.toFriendlyWallet)"
                 }
+
+                let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
+                try await TonKit.Kit.send(transferData: transferData, contract: contract, secretKey: keyPair.privateKey.data, network: Configuration.shared.network)
 
                 await MainActor.run { [weak self] in
                     self?.sentAlertText = successMessage
@@ -134,6 +155,7 @@ extension SendViewModel {
     }
 
     enum SendError: Error {
+        case noKeyPair
         case invalidAmount
     }
 }

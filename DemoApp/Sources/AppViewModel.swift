@@ -5,8 +5,9 @@ import TonKit
 import TonSwift
 import TweetNacl
 
-struct Singleton {
+enum Singleton {
     static var tonKit: Kit?
+    static var keyPair: KeyPair?
 }
 
 enum AppError: Error {
@@ -27,12 +28,11 @@ class AppViewModel: ObservableObject {
         }
     }
 
-    private func initKit(type: Kit.WalletType) throws {
+    private func initKit(address: Address, keyPair: KeyPair?) throws {
         let configuration = Configuration.shared
 
         let tonKit = try Kit.instance(
-            type: type,
-            walletVersion: .v4,
+            address: address,
             network: configuration.network,
             walletId: "wallet-id",
             minLogLevel: configuration.minLogLevel
@@ -42,16 +42,18 @@ class AppViewModel: ObservableObject {
         tonKit.startListener()
 
         Singleton.tonKit = tonKit
+        Singleton.keyPair = keyPair
         self.tonKit = tonKit
     }
 
     private func initKit(words: [String]) throws {
         let keyPair = try Mnemonic.mnemonicToPrivateKey(mnemonicArray: words)
-        try initKit(type: .full(keyPair))
+        let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
+        try initKit(address: contract.address(), keyPair: keyPair)
     }
 
     private func initKit(address: Address) throws {
-        try initKit(type: .watch(address))
+        try initKit(address: address, keyPair: nil)
     }
 
     private var savedWords: [String]? {

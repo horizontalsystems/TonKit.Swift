@@ -5,14 +5,10 @@ import TonSwift
 class TransactionSender {
     private let api: IApi
     private let contract: WalletContract
-    private let sender: Address
-    private let secretKey: Data
 
-    init(api: IApi, contract: WalletContract, sender: Address, secretKey: Data) {
+    init(api: IApi, contract: WalletContract) {
         self.api = api
         self.contract = contract
-        self.sender = sender
-        self.secretKey = secretKey
     }
 
     private func safeTimeout(TTL: UInt64 = 5 * 60) async -> UInt64 {
@@ -23,124 +19,31 @@ class TransactionSender {
             return UInt64(Date().timeIntervalSince1970) + TTL
         }
     }
+
+    private func boc(transferData: TransferData, signer: WalletTransferSigner) async throws -> String {
+        let seqno = try await api.getAccountSeqno(address: transferData.sender)
+        let timeout = await safeTimeout()
+
+        return try ExternalMessageTransferBuilder.externalMessageTransfer(
+            contract: contract,
+            sender: transferData.sender,
+            sendMode: transferData.sendMode,
+            seqno: UInt64(seqno),
+            internalMessages: transferData.internalMessages,
+            timeout: timeout,
+            signer: signer
+        )
+    }
 }
 
 extension TransactionSender {
-    func estimateFee(recipient: FriendlyAddress, amount: Kit.SendAmount, comment: String?) async throws -> BigUInt {
-        let seqno = try await api.getAccountSeqno(address: sender)
-        let timeout = await safeTimeout()
-
-        let value: BigUInt
-        let isMax: Bool
-
-        switch amount {
-        case let .amount(_value):
-            value = _value
-            isMax = false
-        case .max:
-            value = 0
-            isMax = true
-        }
-
-        let data = TransferData(
-            contract: contract,
-            sender: sender,
-            seqno: UInt64(seqno),
-            amount: value,
-            isMax: isMax,
-            recipient: recipient.address,
-            isBounceable: recipient.isBounceable,
-            comment: comment,
-            timeout: timeout
-        ) { transfer in
-            try transfer.signMessage(signer: WalletTransferEmptyKeySigner())
-        }
-
-        let boc = try TonTransferBoc(transferData: data).create()
-
-        return try await api.estimateFee(boc: boc)
+    func emulate(trasferData: TransferData) async throws -> EmulateResult {
+        let boc = try await boc(transferData: trasferData, signer: WalletTransferEmptyKeySigner())
+        return try await api.emulate(boc: boc)
     }
 
-    func estimateFee(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws -> BigUInt {
-        let seqno = try await api.getAccountSeqno(address: sender)
-        let timeout = await safeTimeout()
-
-        let data = TransferData(
-            contract: contract,
-            sender: sender,
-            seqno: UInt64(seqno),
-            amount: amount,
-            isMax: false,
-            recipient: recipient.address,
-            isBounceable: recipient.isBounceable,
-            comment: comment,
-            timeout: timeout
-        ) { transfer in
-            try transfer.signMessage(signer: WalletTransferEmptyKeySigner())
-        }
-
-        let boc = try JettonTransferBoc(jetton: jettonWallet, transferData: data).create()
-
-        return try await api.estimateFee(boc: boc)
-    }
-
-    func send(recipient: FriendlyAddress, amount: Kit.SendAmount, comment: String?) async throws {
-        let seqno = try await api.getAccountSeqno(address: sender)
-        let timeout = await safeTimeout()
-        let secretKey = secretKey
-
-        let value: BigUInt
-        let isMax: Bool
-
-        switch amount {
-        case let .amount(_value):
-            value = _value
-            isMax = false
-        case .max:
-            value = 0
-            isMax = true
-        }
-
-        let data = TransferData(
-            contract: contract,
-            sender: sender,
-            seqno: UInt64(seqno),
-            amount: value,
-            isMax: isMax,
-            recipient: recipient.address,
-            isBounceable: recipient.isBounceable,
-            comment: comment,
-            timeout: timeout
-        ) { transfer in
-            try transfer.signMessage(signer: WalletTransferSecretKeySigner(secretKey: secretKey))
-        }
-
-        let boc = try TonTransferBoc(transferData: data).create()
-
-        return try await api.send(boc: boc)
-    }
-
-    func send(jettonWallet: Address, recipient: FriendlyAddress, amount: BigUInt, comment: String?) async throws {
-        let seqno = try await api.getAccountSeqno(address: sender)
-        let timeout = await safeTimeout()
-        let secretKey = secretKey
-
-        let data = TransferData(
-            contract: contract,
-            sender: sender,
-            seqno: UInt64(seqno),
-            amount: amount,
-            isMax: false,
-            recipient: recipient.address,
-            isBounceable: recipient.isBounceable,
-            comment: comment,
-            timeout: timeout
-        ) { transfer in
-            try transfer.signMessage(signer: WalletTransferSecretKeySigner(secretKey: secretKey))
-        }
-
-        let boc = try JettonTransferBoc(jetton: jettonWallet, transferData: data).create()
-
+    func send(trasferData: TransferData, secretKey: Data) async throws {
+        let boc = try await boc(transferData: trasferData, signer: WalletTransferSecretKeySigner(secretKey: secretKey))
         return try await api.send(boc: boc)
     }
 }

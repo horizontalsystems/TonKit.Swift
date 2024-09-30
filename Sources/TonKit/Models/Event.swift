@@ -1,5 +1,6 @@
 import GRDB
 import TonSwift
+import BigInt
 
 public struct Event: Codable {
     public let id: String
@@ -93,4 +94,9 @@ extension EventSyncState: FetchableRecord, PersistableRecord {
         static let id = Column(CodingKeys.id)
         static let allSynced = Column(CodingKeys.allSynced)
     }
+}
+
+public struct EmulateResult {
+    public let totalFee: BigUInt
+    public let event: Event
 }
