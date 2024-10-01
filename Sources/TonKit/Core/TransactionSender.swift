@@ -37,13 +37,16 @@ class TransactionSender {
 }
 
 extension TransactionSender {
-    func emulate(trasferData: TransferData) async throws -> EmulateResult {
-        let boc = try await boc(transferData: trasferData, signer: WalletTransferEmptyKeySigner())
+    func emulate(transferData: TransferData) async throws -> EmulateResult {
+        let boc = try await boc(transferData: transferData, signer: WalletTransferEmptyKeySigner())
         return try await api.emulate(boc: boc)
     }
 
-    func send(trasferData: TransferData, secretKey: Data) async throws {
-        let boc = try await boc(transferData: trasferData, signer: WalletTransferSecretKeySigner(secretKey: secretKey))
+    func boc(transferData: TransferData, secretKey: Data) async throws -> String {
+        try await boc(transferData: transferData, signer: WalletTransferSecretKeySigner(secretKey: secretKey))
+    }
+
+    func send(boc: String) async throws {
         return try await api.send(boc: boc)
     }
 }

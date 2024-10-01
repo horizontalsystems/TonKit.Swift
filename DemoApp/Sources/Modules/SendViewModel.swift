@@ -127,7 +127,8 @@ class SendViewModel: ObservableObject {
                 }
 
                 let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
-                try await TonKit.Kit.send(transferData: transferData, contract: contract, secretKey: keyPair.privateKey.data, network: Configuration.shared.network)
+                let boc = try await TonKit.Kit.boc(transferData: transferData, contract: contract, secretKey: keyPair.privateKey.data, network: Configuration.shared.network)
+                try await TonKit.Kit.send(boc: boc, contract: contract, network: Configuration.shared.network)
 
                 await MainActor.run { [weak self] in
                     self?.sentAlertText = successMessage
