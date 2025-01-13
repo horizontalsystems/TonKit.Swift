@@ -266,14 +266,14 @@ public extension Kit {
         )
     }
 
-    static func emulate(transferData: TransferData, contract: WalletContract, network: Network) async throws -> EmulateResult {
+    static func emulate(transferData: TransferData, accountStatus: Account.Status, contract: WalletContract, network: Network) async throws -> EmulateResult {
         let transactionSender = TransactionSender(api: api(network: network), contract: contract)
-        return try await transactionSender.emulate(transferData: transferData)
+        return try await transactionSender.emulate(transferData: transferData, accountStatus: accountStatus)
     }
 
-    static func boc(transferData: TransferData, contract: WalletContract, secretKey: Data, network: Network) async throws -> String {
+    static func boc(transferData: TransferData, accountStatus: Account.Status, contract: WalletContract, secretKey: Data, network: Network) async throws -> String {
         let transactionSender = TransactionSender(api: api(network: network), contract: contract)
-        return try await transactionSender.boc(transferData: transferData, secretKey: secretKey)
+        return try await transactionSender.boc(transferData: transferData, accountStatus: accountStatus, secretKey: secretKey)
     }
 
     static func send(boc: String, contract: WalletContract, network: Network) async throws {

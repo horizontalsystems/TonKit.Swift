@@ -9,19 +9,19 @@ class SendViewModel: ObservableObject {
 
     @Published var address: String = Configuration.shared.defaultSendAddress {
         didSet {
-            emulate()
+            // emulate()
         }
     }
 
     @Published var amount: String = "0.025" {
         didSet {
-            emulate()
+            // emulate()
         }
     }
 
     @Published var comment: String = "" {
         didSet {
-            emulate()
+            // emulate()
         }
     }
 
@@ -31,10 +31,10 @@ class SendViewModel: ObservableObject {
     @Published var sentAlertText: String?
 
     init() {
-        emulate()
+        // emulate()
     }
 
-    private func emulate() {
+    func emulate() {
         guard let address = try? FriendlyAddress(string: address) else {
             estimatedFee = nil
             return
@@ -53,7 +53,7 @@ class SendViewModel: ObservableObject {
         let trimmedComment = comment.trimmingCharacters(in: .whitespaces)
         let comment = trimmedComment.isEmpty ? nil : trimmedComment
 
-        guard let tonKit = Singleton.tonKit, let keyPair = Singleton.keyPair else {
+        guard let tonKit = Singleton.tonKit, let account = tonKit.account, let keyPair = Singleton.keyPair else {
             estimatedFee = nil
             return
         }
@@ -73,11 +73,18 @@ class SendViewModel: ObservableObject {
         }
 
         Task { [weak self] in
-            let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
-            let result = try await TonKit.Kit.emulate(transferData: transferData, contract: contract, network: Configuration.shared.network)
+            do {
+                let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
+                let result = try await TonKit.Kit.emulate(transferData: transferData, accountStatus: account.status, contract: contract, network: Configuration.shared.network)
 
-            await MainActor.run { [weak self] in
-                self?.estimatedFee = result.totalFee.tonDecimalValue.map { "\($0) TON" }
+                await MainActor.run { [weak self] in
+                    self?.estimatedFee = result.totalFee.tonDecimalValue.map { "\($0) TON" }
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.estimatedFee = nil
+                }
+                print("EMULATE ERROR: \(error)")
             }
         }
     }
@@ -97,7 +104,7 @@ class SendViewModel: ObservableObject {
     func send() {
         Task { [weak self, token, address, amount, comment] in
             do {
-                guard let tonKit = Singleton.tonKit, let keyPair = Singleton.keyPair else {
+                guard let tonKit = Singleton.tonKit, let account = tonKit.account, let keyPair = Singleton.keyPair else {
                     throw SendError.noKeyPair
                 }
 
@@ -127,7 +134,7 @@ class SendViewModel: ObservableObject {
                 }
 
                 let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
-                let boc = try await TonKit.Kit.boc(transferData: transferData, contract: contract, secretKey: keyPair.privateKey.data, network: Configuration.shared.network)
+                let boc = try await TonKit.Kit.boc(transferData: transferData, accountStatus: account.status, contract: contract, secretKey: keyPair.privateKey.data, network: Configuration.shared.network)
                 try await TonKit.Kit.send(boc: boc, contract: contract, network: Configuration.shared.network)
 
                 await MainActor.run { [weak self] in

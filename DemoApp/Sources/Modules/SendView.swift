@@ -38,9 +38,14 @@ struct SendView: View {
                     Text(viewModel.estimatedFee ?? "n/a").font(.system(size: 14))
                 }
 
+                Button("Emulate") {
+                    viewModel.emulate()
+                }
+
                 Button("Send") {
                     viewModel.send()
                 }
+                .disabled(viewModel.estimatedFee == nil)
 
                 Spacer()
             }

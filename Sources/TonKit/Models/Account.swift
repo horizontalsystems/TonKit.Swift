@@ -1,7 +1,7 @@
+import BigInt
 import Foundation
 import GRDB
 import TonSwift
-import BigInt
 
 public struct Account: Codable, Equatable {
     public let address: Address
@@ -17,12 +17,19 @@ extension Account: FetchableRecord, PersistableRecord {
     }
 }
 
-extension Account {
-    public enum Status: String, Codable {
+public extension Account {
+    enum Status: String, Codable {
         case nonexist
         case uninit
         case active
         case frozen
         case unknown
+
+        var stateInitRequired: Bool {
+            switch self {
+            case .uninit: return true
+            default: return false
+            }
+        }
     }
 }

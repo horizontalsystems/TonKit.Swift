@@ -20,7 +20,7 @@ class TransactionSender {
         }
     }
 
-    private func boc(transferData: TransferData, signer: WalletTransferSigner) async throws -> String {
+    private func boc(transferData: TransferData, accountStatus: Account.Status, signer: WalletTransferSigner) async throws -> String {
         let seqno = try await api.getAccountSeqno(address: transferData.sender)
         let timeout = await safeTimeout()
 
@@ -31,19 +31,20 @@ class TransactionSender {
             seqno: UInt64(seqno),
             internalMessages: transferData.internalMessages,
             timeout: timeout,
-            signer: signer
+            signer: signer,
+            accountStatus: accountStatus
         )
     }
 }
 
 extension TransactionSender {
-    func emulate(transferData: TransferData) async throws -> EmulateResult {
-        let boc = try await boc(transferData: transferData, signer: WalletTransferEmptyKeySigner())
+    func emulate(transferData: TransferData, accountStatus: Account.Status) async throws -> EmulateResult {
+        let boc = try await boc(transferData: transferData, accountStatus: accountStatus, signer: WalletTransferEmptyKeySigner())
         return try await api.emulate(boc: boc)
     }
 
-    func boc(transferData: TransferData, secretKey: Data) async throws -> String {
-        try await boc(transferData: transferData, signer: WalletTransferSecretKeySigner(secretKey: secretKey))
+    func boc(transferData: TransferData, accountStatus: Account.Status, secretKey: Data) async throws -> String {
+        try await boc(transferData: transferData, accountStatus: accountStatus, signer: WalletTransferSecretKeySigner(secretKey: secretKey))
     }
 
     func send(boc: String) async throws {

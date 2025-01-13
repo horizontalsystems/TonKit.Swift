@@ -11,7 +11,8 @@ public struct ExternalMessageTransferBuilder {
         seqno: UInt64,
         internalMessages: [MessageRelaxed],
         timeout: UInt64?,
-        signer: WalletTransferSigner
+        signer: WalletTransferSigner,
+        accountStatus: Account.Status
     ) throws -> String {
         let transferData = WalletTransferData(
             seqno: seqno,
@@ -29,7 +30,7 @@ public struct ExternalMessageTransferBuilder {
 
         let externalMessage = Message.external(
             to: sender,
-            stateInit: contract.stateInit,
+            stateInit: accountStatus.stateInitRequired ? contract.stateInit : nil,
             body: transferCell
         )
 

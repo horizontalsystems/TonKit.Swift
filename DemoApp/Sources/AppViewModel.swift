@@ -47,6 +47,7 @@ class AppViewModel: ObservableObject {
     }
 
     private func initKit(words: [String]) throws {
+        // let keyPair = try Mnemonic.bip39MnemonicToPrivateKey(mnemonicArray: words)
         let keyPair = try Mnemonic.mnemonicToPrivateKey(mnemonicArray: words)
         let contract = WalletV4R2(publicKey: keyPair.publicKey.data)
         try initKit(address: contract.address(), keyPair: keyPair)
