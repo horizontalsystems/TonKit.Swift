@@ -50,8 +50,8 @@ class TonApi: IApi {
         try await LiteServerAPI.getRawTime().time
     }
 
-    func emulate(boc: String) async throws -> EmulateResult {
-        let result = try await EmulationAPI.emulateMessageToWallet(emulateMessageToWalletRequest: .init(boc: boc))
+    func emulate(boc: String, params: [EmulateMessageToWalletRequestParamsInner]?) async throws -> EmulateResult {
+        let result = try await EmulationAPI.emulateMessageToWallet(emulateMessageToWalletRequest: .init(boc: boc, params: params))
         return try EmulateResult(totalFee: BigUInt(result.trace.transaction.totalFees), event: Event(event: result.event))
     }
 

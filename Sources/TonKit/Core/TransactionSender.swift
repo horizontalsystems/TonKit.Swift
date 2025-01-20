@@ -1,5 +1,6 @@
 import BigInt
 import Foundation
+import TonAPI
 import TonSwift
 
 class TransactionSender {
@@ -41,7 +42,8 @@ class TransactionSender {
 extension TransactionSender {
     func emulate(transferData: TransferData) async throws -> EmulateResult {
         let boc = try await boc(transferData: transferData, signer: WalletTransferEmptyKeySigner())
-        return try await api.emulate(boc: boc)
+        let params: [EmulateMessageToWalletRequestParamsInner] = [.init(address: transferData.sender.toString(), balance: 1_000_000_000)]
+        return try await api.emulate(boc: boc, params: params)
     }
 
     func boc(transferData: TransferData, secretKey: Data) async throws -> String {

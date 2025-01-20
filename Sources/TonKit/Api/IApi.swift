@@ -1,5 +1,6 @@
-import TonSwift
 import BigInt
+import TonAPI
+import TonSwift
 
 protocol IApi {
     func getAccount(address: Address) async throws -> Account
@@ -8,6 +9,6 @@ protocol IApi {
     func getAccountSeqno(address: Address) async throws -> Int
     func getJettonInfo(address: Address) async throws -> Jetton
     func getRawTime() async throws -> Int
-    func emulate(boc: String) async throws -> EmulateResult
+    func emulate(boc: String, params: [EmulateMessageToWalletRequestParamsInner]?) async throws -> EmulateResult
     func send(boc: String) async throws
 }
