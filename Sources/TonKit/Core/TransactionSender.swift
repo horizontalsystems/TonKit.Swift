@@ -23,8 +23,12 @@ class TransactionSender {
 
     private func boc(transferData: TransferData, signer: WalletTransferSigner) async throws -> String {
         let seqno = try await api.getAccountSeqno(address: transferData.sender)
-        let timeout = await safeTimeout()
+        var timeout = await safeTimeout()
         let account = try await api.getAccount(address: transferData.sender)
+
+        if let validUntil = transferData.validUntil {
+            timeout = min(timeout, UInt64(validUntil))
+        }
 
         return try ExternalMessageTransferBuilder.externalMessageTransfer(
             contract: contract,

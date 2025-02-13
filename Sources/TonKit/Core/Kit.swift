@@ -143,6 +143,7 @@ public extension Kit {
         return TransferData(
             sender: address,
             sendMode: isMax ? .sendMaxTon() : .walletDefault(),
+            validUntil: nil,
             internalMessages: [internalMessage]
         )
     }
@@ -164,6 +165,7 @@ public extension Kit {
         return TransferData(
             sender: address,
             sendMode: .walletDefault(),
+            validUntil: nil,
             internalMessages: [internalMessage]
         )
     }
@@ -236,7 +238,11 @@ public extension Kit {
         try await api(network: network).getJettonInfo(address: address)
     }
 
-    static func transferData(sender: Address, payloads: [Payload]) throws -> TransferData {
+    static func account(network: Network = .mainNet, address: Address) async throws -> Account {
+        try await api(network: network).getAccount(address: address)
+    }
+
+    static func transferData(sender: Address, validUntil: TimeInterval?, payloads: [Payload]) throws -> TransferData {
         let internalMessages = try payloads.map { payload in
             var stateInit: TonSwift.StateInit?
 
@@ -253,7 +259,7 @@ public extension Kit {
             return MessageRelaxed.internal(
                 to: payload.recipientAddress,
                 value: payload.value.magnitude,
-                bounce: false,
+                bounce: true,
                 stateInit: stateInit,
                 body: body
             )
@@ -262,6 +268,7 @@ public extension Kit {
         return TransferData(
             sender: sender,
             sendMode: .walletDefault(),
+            validUntil: validUntil,
             internalMessages: internalMessages
         )
     }
