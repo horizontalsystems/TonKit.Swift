@@ -1,6 +1,6 @@
+import BigInt
 import GRDB
 import TonSwift
-import BigInt
 
 public struct Event: Codable {
     public let id: String

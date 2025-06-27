@@ -73,9 +73,9 @@ extension EventManager {
         }
     }
 
-    func events(tagQuery: TagQuery, beforeLt: Int64?, limit: Int?) -> [Event] {
+    func events(tagQuery: TagQuery, lt: Int64?, descending: Bool, limit: Int?) -> [Event] {
         do {
-            return try storage.events(tagQuery: tagQuery, beforeLt: beforeLt, limit: limit ?? 100)
+            return try storage.events(tagQuery: tagQuery, lt: lt, descending: descending, limit: limit ?? 100)
         } catch {
             return []
         }

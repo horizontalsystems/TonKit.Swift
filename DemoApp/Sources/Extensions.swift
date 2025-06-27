@@ -1,7 +1,7 @@
 import BigInt
 import Foundation
-import TonSwift
 import TonKit
+import TonSwift
 
 extension String: Identifiable {
     public typealias ID = Int
@@ -41,5 +41,5 @@ extension Address {
 extension AccountAddress {
     var toFriendly: String {
         isWallet ? address.toFriendlyWallet : address.toFriendlyContract
-    }   
+    }
 }

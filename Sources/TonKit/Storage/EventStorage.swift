@@ -54,7 +54,7 @@ extension EventStorage {
         }
     }
 
-    func events(tagQuery: TagQuery, beforeLt: Int64?, limit: Int) throws -> [Event] {
+    func events(tagQuery: TagQuery, lt: Int64?, descending: Bool, limit: Int?) throws -> [Event] {
         try dbPool.read { db in
             var arguments = [DatabaseValueConvertible]()
             var whereConditions = [String]()
@@ -89,13 +89,16 @@ extension EventStorage {
                 joinClause = "INNER JOIN tag ON event.\(Event.Columns.id.name) = tag.\(Tag.Columns.eventId.name)"
             }
 
-            if let beforeLt {
-                whereConditions.append("event.\(Event.Columns.lt.name) < ?")
-                arguments.append(beforeLt)
+            if let lt {
+                whereConditions.append("event.\(Event.Columns.lt.name) \(descending ? "<" : ">") ?")
+                arguments.append(lt)
             }
 
-            let limitClause = "LIMIT \(limit)"
-            let orderClause = "ORDER BY event.\(Event.Columns.lt.name) DESC"
+            let limitClause = ""
+            if let limit {
+                let limitClause = "LIMIT \(limit)"
+            }
+            let orderClause = "ORDER BY event.\(Event.Columns.lt.name) \(descending ? "DESC" : "ASC")"
             let whereClause = whereConditions.count > 0 ? "WHERE \(whereConditions.joined(separator: " AND "))" : ""
 
             let sql = """

@@ -98,8 +98,8 @@ public extension Kit {
         address
     }
 
-    func events(tagQuery: TagQuery, beforeLt: Int64? = nil, limit: Int? = nil) -> [Event] {
-        eventManager.events(tagQuery: tagQuery, beforeLt: beforeLt, limit: limit)
+    func events(tagQuery: TagQuery, lt: Int64? = nil, descending: Bool, limit: Int? = nil) -> [Event] {
+        eventManager.events(tagQuery: tagQuery, lt: lt, descending: descending, limit: limit)
     }
 
     func eventPublisher(tagQuery: TagQuery) -> AnyPublisher<EventInfo, Never> {
