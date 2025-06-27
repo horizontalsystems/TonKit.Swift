@@ -1,10 +1,10 @@
-//import BigInt
-//import Combine
-//import Foundation
-//import TonKit
-//import TonSwift
+// import BigInt
+// import Combine
+// import Foundation
+// import TonKit
+// import TonSwift
 //
-//class TonAdapter {
+// class TonAdapter {
 //    public let tonKit: Kit
 //    private let decimal = 9
 //
@@ -24,9 +24,9 @@
 //            decoration: fullTransaction.decoration
 //        )
 //    }
-//}
+// }
 //
-//extension TonAdapter {
+// extension TonAdapter {
 //    func start() {
 //        tonKit.start()
 //    }
@@ -56,9 +56,9 @@
 //    }
 //
 //    var balance: Decimal {
-    //    if let significand = Decimal(string: tonKit.balance.description) {
-    //        return Decimal(sign: .plus, exponent: -decimal, significand: significand)
-    //    }
+//    if let significand = Decimal(string: tonKit.balance.description) {
+//        return Decimal(sign: .plus, exponent: -decimal, significand: significand)
+//    }
 //
 //        return 0
 //    }
@@ -70,7 +70,7 @@
 //    func jettonBalancePublisher(address: Address) -> AnyPublisher<BigUInt, Never> {
 //        tonKit.jettonBalancePublisher(address: address)
 //    }
-//    
+//
 //    var jettons: [Jetton] {
 //        tonKit.jettons
 //    }
@@ -110,18 +110,18 @@
 //    func send(recipient: String, jetton: Jetton? = nil, amount: BigUInt, comment: String?) async throws {
 //        try await tonKit.send(recipient: recipient, jetton: jetton, amount: amount, comment: comment)
 //    }
-//}
+// }
 //
-//extension TonAdapter {
+// extension TonAdapter {
 //    enum SendError: Error {
 //        case noSigner
 //    }
-//}
+// }
 //
-//extension Decimal {
+// extension Decimal {
 //    func rounded(decimal: Int) -> Decimal {
 //        let poweredDecimal = self * pow(10, decimal)
 //        let handler = NSDecimalNumberHandler(roundingMode: .plain, scale: 0, raiseOnExactness: false, raiseOnOverflow: false, raiseOnUnderflow: false, raiseOnDivideByZero: false)
 //        return NSDecimalNumber(decimal: poweredDecimal).rounding(accordingToBehavior: handler).decimalValue / pow(10, decimal)
 //    }
-//}
+// }
