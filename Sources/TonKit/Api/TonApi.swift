@@ -111,6 +111,7 @@ extension Jetton.VerificationType {
         switch verification {
         case .whitelist: self = .whitelist
         case .blacklist: self = .blacklist
+        case .graylist: self = .graylist
         case ._none: self = .none
         case .unknownDefaultOpenApi: self = .unknown
         }
@@ -174,7 +175,7 @@ extension Action.`Type` {
         case .jettonSwap:
             if let action = action.jettonSwap {
                 self = try .jettonSwap(action: .init(
-                    dex: action.dex.rawValue,
+                    dex: action.dex,
                     amountIn: BigUInt(action.amountIn) ?? 0,
                     amountOut: BigUInt(action.amountOut) ?? 0,
                     tonIn: action.tonIn.map { BigUInt($0) },

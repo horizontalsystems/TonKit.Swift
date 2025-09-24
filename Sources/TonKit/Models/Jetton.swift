@@ -13,6 +13,7 @@ public struct Jetton: Codable, Equatable, Hashable {
 public extension Jetton {
     enum VerificationType: String, Codable {
         case whitelist
+        case graylist
         case blacklist
         case none
         case unknown
