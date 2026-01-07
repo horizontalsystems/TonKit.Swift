@@ -259,7 +259,7 @@ public extension Kit {
             return MessageRelaxed.internal(
                 to: payload.recipientAddress,
                 value: payload.value.magnitude,
-                bounce: true,
+                bounce: payload.bounceable,
                 stateInit: stateInit,
                 body: body
             )
@@ -322,12 +322,14 @@ public extension Kit {
     struct Payload {
         let value: BigInt
         let recipientAddress: Address
+        let bounceable: Bool
         let stateInit: String?
         let payload: String?
 
-        public init(value: BigInt, recipientAddress: Address, stateInit: String?, payload: String?) {
+        public init(value: BigInt, recipientAddress: Address, bounceable: Bool, stateInit: String?, payload: String?) {
             self.value = value
             self.recipientAddress = recipientAddress
+            self.bounceable = bounceable
             self.stateInit = stateInit
             self.payload = payload
         }
